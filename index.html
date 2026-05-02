@@ -357,7 +357,7 @@ footer p{font-size:.72rem;color:var(--muted)}
         </div>
         <div class="form-row">
           <input type="email" id="wle" placeholder="your@email.com">
-          <button onclick="window.open('https://forms.gle/o6NwK9UfaZJcNfmT7','_blank');document.getElementById('wlf').style.display='none';document.getElementById('wls').style.display='block'">Get early access &rarr;</button>
+          <button onclick="swl()">Get early access &rarr;</button>
         </div>
         <p class="form-note">&#128274; No spam. No credit card. One personal email when your app launches.</p>
       </div>
@@ -388,6 +388,15 @@ footer p{font-size:.72rem;color:var(--muted)}
 function swl(){
   var e=document.getElementById('wle').value.trim();
   if(!e||!e.includes('@')){document.getElementById('wle').style.borderColor='var(--red)';return}
+  var selected=[];
+  document.querySelectorAll('.pill.on').forEach(function(p){selected.push(p.textContent.trim())});
+  var formId='1FAIpQLSc2OgNpr7BbzJpSFKaVMrTQDBBFz7xwYG-4G_hNMEbaDXECSQ';
+  var emailField='entry.1559406371';
+  var appField='entry.370173851';
+  var body=new URLSearchParams();
+  body.append(emailField,e);
+  selected.forEach(function(app){body.append(appField,app)});
+  fetch('https://docs.google.com/forms/d/e/'+formId+'/formResponse',{method:'POST',mode:'no-cors',body:body});
   document.getElementById('wlf').style.display='none';
   document.getElementById('wls').style.display='block';
 }
