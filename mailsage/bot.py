@@ -233,8 +233,10 @@ def handle_brief(chat_id, user_id, arg=""):
         send(chat_id, "⚠️ Gmail not connected yet. Send /auth first.")
         return
 
-    force_refresh = arg.strip().lower() == "refresh"
-    lookback_days, label = parse_brief_arg(arg)
+    parts         = arg.strip().lower().split()
+    force_refresh = "refresh" in parts
+    clean_arg     = " ".join(p for p in parts if p != "refresh")
+    lookback_days, label = parse_brief_arg(clean_arg)
     if lookback_days is None:
         send(chat_id, f"⚠️ {label}")
         return
