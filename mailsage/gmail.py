@@ -62,7 +62,7 @@ def fetch_emails(user_id: str, lookback_days: int = 1, max_results: int = 50) ->
         userId    = "me",
         q         = query,
         maxResults = max_results
-    ).execute()
+    ).execute(num_retries=0, timeout=30)
 
     messages = result.get("messages", [])
     if not messages:
@@ -76,7 +76,7 @@ def fetch_emails(user_id: str, lookback_days: int = 1, max_results: int = 50) ->
                 id      = msg["id"],
                 format  = "metadata",
                 metadataHeaders = ["From", "Subject", "Date"]
-            ).execute()
+            ).execute(num_retries=0, timeout=30)
 
             headers = {h["name"]: h["value"] for h in full["payload"]["headers"]}
             snippet = full.get("snippet", "")[:200]
