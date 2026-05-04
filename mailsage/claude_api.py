@@ -53,7 +53,7 @@ If none, write "None."
 Format each as: 1. *Sender Name* — subject in 8 words or fewer — one-line summary
 
 📬 FYI ([count])
-Worth knowing, no action needed. Bank transactions, account updates, shipping, confirmations. Max 5.
+Worth knowing, no action needed. Bank transactions, account updates, shipping, confirmations. {"Max 5." if lookback_days == 1 else "Include all relevant items — do not cap."}
 Format each as: 1. *Sender Name* — subject in 8 words or fewer — one-line summary
 
 🗑 NOISE SKIPPED
@@ -70,6 +70,10 @@ Rules:
 - India-context aware (BSE, SEBI, NSDL, ITR, GST, UPI, NEFT always important)
 - Amounts in ₹ where visible
 {"- Do NOT include dates on any item — this is a daily brief" if lookback_days == 1 else "- Append the email date at the end of each item summary in format (D Mon) e.g. (2 May), (28 Apr). Inside parentheses, after the summary, before the newline. Use the Date field from the email metadata."}
+{"" if lookback_days == 1 else """
+- This is a multi-day digest, not a daily brief. Include ALL genuinely important emails across the full period — do not limit counts artificially.
+- Group repeated senders: e.g. '3 emails from HDFC — Apr/Mar/Feb statements (3 Apr, 2 Mar, 1 Feb)'
+- A multi-day brief should have noticeably more items than a daily brief if the emails warrant it."""}
 """
     return prompt
 
