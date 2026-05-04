@@ -1,5 +1,5 @@
 # sageApps — Master Reference & Action Tracker
-*Last updated: May 4, 2026 | Built with Claude*
+*Last updated: May 4, 2026 (evening) | Built with Claude*
 
 ---
 
@@ -49,10 +49,16 @@
   - FYI: max 8 (daily) vs grouped/capped at 10 with collapse line (multi-day)
   - Stats header with noise ratio logic (hidden if <30% filtered)
   - Security alerts in ⚡ not 🔴
+  - /start onboarding flow: welcome message → persona picker inline keyboard
+  - /admin command (admin-only, ADMIN_CHAT_ID in .env): user stats, persona breakdown, feedback, last brief
+  - /reset: two-step confirmation (CONFIRM/Cancel inline) — deletes token, profile, all cache
+  - Expanded keyboard: 📬 Brief, 🔄 Refresh, ⚙️ Settings, 🎭 Persona, 🔗 Auth, ⏰ Set Time, 🗑 Reset, ❓ Help
+  - Prompt: conditional FYI cap (8 daily / 10 grouped multi-day), noise line format per period
+  - Landing page (sageapps.in): MailSage badge + CTA updated to LIVE, founder bio section added
 - **Droplet path:** /home/mailsage/mailsage/ — git connected to GitHub ✅
   - Code in nested subdir: /home/mailsage/mailsage/mailsage/
   - Supervisor config: /etc/supervisor/conf.d/mailsage.conf
-- **Next:** First external user, tune prompt further
+- **Next:** First external user, tune prompt further, share in network
 
 ### 🟡 BUILD NEXT (in order)
 
@@ -262,12 +268,20 @@ Santosh prefers: direct feedback, no filler, constraints over options, one focus
 - Droplet /home/mailsage/mailsage/ git-connected to GitHub
 - Deploy flow established (push on MacBook → pull on droplet → restart)
 - sageapps_master.md in GitHub repo ✅
+- Persona presets (4 profiles), post-auth onboarding flow ✅
+- Inline feedback buttons on every brief ✅
+- /admin command with full stats ✅
+- Two-step /reset flow ✅
+- Expanded keyboard (8 buttons) ✅
+- Paginated Gmail fetch (up to 500 emails) ✅
+- Conditional prompt format for daily vs multi-day briefs ✅
+- Landing page updated: MailSage LIVE badge + CTA + founder bio ✅
 
 ### This week
-- [ ] Use MailSage daily — tune Claude prompt based on real errors
 - [ ] First external user on MailSage
-- [ ] Push updated sageapps_master.md to GitHub after each session
+- [ ] Share with IIM/S&P network — free access for feedback
 - [ ] Connect FinSage droplet path to GitHub (when ready)
+- [ ] Post on r/IndiaInvestments about FinSage
 
 ### Next week
 - [ ] Post on r/IndiaInvestments about FinSage — no pitch, just utility
