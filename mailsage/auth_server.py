@@ -5,6 +5,7 @@ MailSage — OAuth Auth Server
 import os
 import json
 import logging
+import requests
 from pathlib import Path
 from flask import Flask, request
 from google_auth_oauthlib.flow import Flow
@@ -98,9 +99,41 @@ def callback():
         get_token_path(state).write_text(json.dumps(token_data, indent=2))
         log.info(f"Token saved for user {state}")
 
+        # Send persona picker in Telegram so user sets up Signal Profile
+        try:
+            telegram_token = os.getenv("TELEGRAM_TOKEN")
+            base_url       = f"https://api.telegram.org/bot{telegram_token}"
+            requests.post(f"{base_url}/sendMessage", json={
+                "chat_id":    state,
+                "text":       "✅ *Gmail connected!*\n\nNow let's set up your Signal Profile so I know what matters to you.",
+                "parse_mode": "Markdown",
+            }, timeout=10)
+            requests.post(f"{base_url}/sendMessage", json={
+                "chat_id":    state,
+                "text":       "👤 *What best describes you?*\n\nI'll set up your Signal Profile to match. You can customise it anytime with /settings.",
+                "parse_mode": "Markdown",
+                "reply_markup": {
+                    "inline_keyboard": [
+                        [
+                            {"text": "💼 Salaried",             "callback_data": "persona_salaried"},
+                            {"text": "📈 Investor",              "callback_data": "persona_investor"},
+                        ],
+                        [
+                            {"text": "🏢 Founder",               "callback_data": "persona_founder"},
+                            {"text": "👨‍👩‍👧 Family Manager",    "callback_data": "persona_family"},
+                        ],
+                        [
+                            {"text": "⚙️ Custom (start blank)", "callback_data": "persona_custom"},
+                        ],
+                    ]
+                }
+            }, timeout=10)
+        except Exception as e:
+            log.error(f"Failed to send persona picker to {state}: {e}")
+
         return """
             <h2>✅ Gmail connected successfully!</h2>
-            <p>Go back to Telegram and send <b>/brief</b> to get your first email brief.</p>
+            <p>Go back to Telegram to complete your Signal Profile setup.</p>
         """, 200
 
     except Exception as e:

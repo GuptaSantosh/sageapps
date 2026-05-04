@@ -23,6 +23,7 @@ from claude_api import get_brief
 from auth_server import get_auth_url
 from cache import get_cached_brief, set_cached_brief, invalidate_cache
 from keyboard import main_menu
+from personas import PERSONAS, DEFAULT_SIGNAL
 
 load_dotenv()
 
@@ -99,6 +100,48 @@ def answer_callback(callback_id, text=""):
         }, timeout=5)
     except:
         pass
+
+
+# ── Persona helpers ────────────────────────────────────────────
+
+def send_persona_picker(chat_id):
+    payload = {
+        "chat_id":    chat_id,
+        "text":       "👤 *What best describes you?*\n\nI'll set up your Signal Profile to match. You can customise it anytime with /settings.",
+        "parse_mode": "Markdown",
+        "reply_markup": {
+            "inline_keyboard": [
+                [
+                    {"text": "💼 Salaried",        "callback_data": "persona_salaried"},
+                    {"text": "📈 Investor",         "callback_data": "persona_investor"},
+                ],
+                [
+                    {"text": "🏢 Founder",          "callback_data": "persona_founder"},
+                    {"text": "👨‍👩‍👧 Family Manager", "callback_data": "persona_family"},
+                ],
+                [
+                    {"text": "⚙️ Custom (start blank)", "callback_data": "persona_custom"},
+                ],
+            ]
+        }
+    }
+    try:
+        requests.post(f"{BASE_URL}/sendMessage", json=payload, timeout=10)
+    except Exception as e:
+        log.error(f"send_persona_picker() failed for {chat_id}: {e}")
+
+
+def apply_persona(user_id, persona_key):
+    if persona_key == "custom":
+        update_signal_profile(user_id, DEFAULT_SIGNAL)
+        return None
+    persona = PERSONAS[persona_key]
+    update_signal_profile(user_id, persona["signal"])
+    return persona
+
+
+def handle_setup(chat_id, user_id):
+    send_persona_picker(chat_id)
 
 
 # ── Date parsing ───────────────────────────────────────────────
@@ -362,6 +405,17 @@ def handle_callback_query(callback_query: dict):
         answer_callback(callback_id)
         set_state(user_id, {"waiting_for": "feedback"})
         send(chat_id, "💬 What would make it better?")
+    elif data.startswith("persona_"):
+        persona_key = data[len("persona_"):]
+        answer_callback(callback_id)
+        persona = apply_persona(user_id, persona_key)
+        invalidate_cache(user_id)
+        if persona is None:
+            send(chat_id, "⚙️ *Custom profile set.* No filters applied yet.\n\nUse /settings to add your priority senders, keywords, and noise filters.\n\nSend /brief whenever you're ready.")
+        else:
+            top_keywords = ", ".join(persona["signal"]["alert_keywords"][:3])
+            send(chat_id, f"✅ *Signal Profile set for {persona['emoji']} {persona['name']}.*\n\nYour brief will now prioritise {top_keywords}, and more.\n\nUse /settings to customise anytime. Send /brief to get started.")
+        log.info(f"Persona set for {user_id}: {persona_key}")
 
 
 # ── State handler ──────────────────────────────────────────────
@@ -437,6 +491,8 @@ def handle_update(update: dict):
         handle_start(chat_id, user_id, first_name)
     elif cmd == "auth":
         handle_auth(chat_id, user_id)
+    elif cmd == "setup":
+        handle_setup(chat_id, user_id)
     elif cmd == "brief":
         handle_brief(chat_id, user_id, arg)
     elif cmd == "settings":
