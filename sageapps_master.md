@@ -1,5 +1,5 @@
 # sageApps — Master Reference & Action Tracker
-*Last updated: May 4, 2026 (evening) | Built with Claude*
+*Last updated: May 4, 2026 | Built with Claude*
 
 ---
 
@@ -27,38 +27,17 @@
 - **Key rule:** Claude explains, never decides trade amounts. Recommendation consistency = user trust.
 
 #### MailSage
-- **Status:** Live on DigitalOcean, Telegram bot @MailSageAI_bot, single user testing (May 4 2026)
+- **Status:** Live on DigitalOcean, Telegram bot @MailSageAI_bot, single user testing (May 3 2026)
+- **Status:** Beta-ready, May 4 2026. External users starting.
 - **Value prop:** Email triage, daily brief, date-range briefs, smart noise filter — India-context aware
 - **Price:** ₹499–999/mo
 - **Signal Profile:** Priority senders + alert keywords + noise filters. Persists via data/{user_id}_user.json
 - **Architecture:** Telegram bot (bot.py) + Flask OAuth server (auth_server.py) + nginx SSL on api.sageapps.in. Gmail OAuth2 per user. Claude summarises via claude_api.py. Caching via cache.py (60 min TTL).
-- **Files:** bot.py, auth_server.py, gmail.py, claude_api.py, database.py, cache.py, keyboard.py, cron_brief.py, personas.py
-- **Commands:** /brief, /brief 7, /brief 3may, /brief 3may 10may, /brief [any] refresh, /auth, /settings, /persona, /setup, /reset, /add_priority, /add_keyword, /add_noise, /set_time, /admin, /help
-- **Features done (as of May 4 2026):**
-  - Gmail OAuth multi-user, Signal Profile, 60min cache, date ranges
-  - 7AM + 7PM IST auto-brief cron with time-aware greeting (🌅/🌆)
-  - Keyboard: 📬 Brief, 🔄 Refresh, ⚙️ Settings, 🎭 Persona, 🔗 Auth, ⏰ Set Time, 🗑 Reset, ❓ Help
-  - Inline feedback buttons on every brief (👍/👎/💬) — logged to feedback.log + feedback.json
-  - Persona presets: 💼 Salaried, 📈 Investor, 🏢 Founder, 👨‍👩‍👧 Family — triggered post-auth + /persona
-  - Two-step /reset with CONFIRM/Cancel inline buttons — deletes token, profile, cache
-  - /admin command (admin-only): user stats, persona breakdown, feedback summary, last brief time
-  - Paginated Gmail fetch: up to lookback_days×50 emails, max 500
-  - socket.setdefaulttimeout(30) on all Gmail API calls
-  - Numbered lists, bold senders, 8-word subject limit in Claude prompt
-  - Date appended per item on multi-day briefs (D Mon format), suppressed on daily
-  - FYI: max 8 (daily) vs grouped/capped at 10 with collapse line (multi-day)
-  - Stats header with noise ratio logic (hidden if <30% filtered)
-  - Security alerts in ⚡ not 🔴
-  - /start onboarding flow: welcome message → persona picker inline keyboard
-  - /admin command (admin-only, ADMIN_CHAT_ID in .env): user stats, persona breakdown, feedback, last brief
-  - /reset: two-step confirmation (CONFIRM/Cancel inline) — deletes token, profile, all cache
-  - Expanded keyboard: 📬 Brief, 🔄 Refresh, ⚙️ Settings, 🎭 Persona, 🔗 Auth, ⏰ Set Time, 🗑 Reset, ❓ Help
-  - Prompt: conditional FYI cap (8 daily / 10 grouped multi-day), noise line format per period
-  - Landing page (sageapps.in): MailSage badge + CTA updated to LIVE, founder bio section added
+- **Files:** bot.py, auth_server.py, gmail.py, claude_api.py, database.py, cache.py, keyboard.py, cron_brief.py
+- **Commands:** /brief, /brief 7, /brief 3may, /brief 3may 10may, /brief refresh, /auth, /settings, /add_priority, /add_keyword, /add_noise, /set_time, /help
+- **Features done:** Gmail OAuth multi-user, Signal Profile, 60min cache, date ranges, 7AM IST auto-brief cron, keyboard buttons, BotFather menu, conversation state for multi-step commands, stats header with noise ratio logic (hidden if <30% filtered), security alerts in ⚡ not 🔴
 - **Droplet path:** /home/mailsage/mailsage/ — git connected to GitHub ✅
-  - Code in nested subdir: /home/mailsage/mailsage/mailsage/
-  - Supervisor config: /etc/supervisor/conf.d/mailsage.conf
-- **Next:** First external user, tune prompt further, share in network
+- **Next:** Use daily for 5-7 days, tune prompt, first external user
 
 ### 🟡 BUILD NEXT (in order)
 
@@ -141,9 +120,8 @@ cd /home/mailsage/mailsage && git pull && supervisorctl restart mailsage-bot mai
 
 ### supervisorctl services
 - `finsage` — RUNNING (uptime 10+ days)
-- `mailsage-bot` — RUNNING (command: venv/bin/python /home/mailsage/mailsage/mailsage/bot.py)
-- `mailsage-auth` — RUNNING (command: venv/bin/python /home/mailsage/mailsage/mailsage/auth_server.py)
-- Config: /etc/supervisor/conf.d/mailsage.conf — note scripts are in the nested mailsage/mailsage/ subdir
+- `mailsage-bot` — RUNNING
+- `mailsage-auth` — RUNNING
 
 ### Signal Profile (the config)
 - Filename: `signal.json` (internal), called "Signal Profile" in UI
@@ -268,20 +246,22 @@ Santosh prefers: direct feedback, no filler, constraints over options, one focus
 - Droplet /home/mailsage/mailsage/ git-connected to GitHub
 - Deploy flow established (push on MacBook → pull on droplet → restart)
 - sageapps_master.md in GitHub repo ✅
-- Persona presets (4 profiles), post-auth onboarding flow ✅
-- Inline feedback buttons on every brief ✅
-- /admin command with full stats ✅
-- Two-step /reset flow ✅
-- Expanded keyboard (8 buttons) ✅
-- Paginated Gmail fetch (up to 500 emails) ✅
-- Conditional prompt format for daily vs multi-day briefs ✅
-- Landing page updated: MailSage LIVE badge + CTA + founder bio ✅
+
+- MailSage cron lock, timeout, numbered brief, bold sender
+- MailSage persona picker (4 personas + custom)
+- MailSage /reset, /admin, feedback buttons
+- MailSage welcome /start message
+- MailSage expanded keyboard (7 buttons)
+- index.html: MailSage live, Telegram link, founder bio, levelsio removed
+- sageapps.ai domain purchased
 
 ### This week
 - [ ] First external user on MailSage
-- [ ] Share with IIM/S&P network — free access for feedback
+
 - [ ] Connect FinSage droplet path to GitHub (when ready)
-- [ ] Post on r/IndiaInvestments about FinSage
+- [x] Use MailSage daily — tune Claude prompt ✅
+- [x] Push updated sageapps_master.md to GitHub ✅
+- [x] Buy sageapps.ai domain ✅
 
 ### Next week
 - [ ] Post on r/IndiaInvestments about FinSage — no pitch, just utility
