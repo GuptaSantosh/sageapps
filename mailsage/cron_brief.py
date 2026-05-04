@@ -17,6 +17,15 @@ from cache import get_cached_brief, set_cached_brief
 
 load_dotenv()
 
+# Prevent duplicate runs
+import fcntl, sys
+_lock = open("/tmp/mailsage_cron.lock", "w")
+try:
+    fcntl.flock(_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except IOError:
+    logging.info("Cron already running — exiting.")
+    sys.exit(0)
+
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 BASE_URL       = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 DATA_DIR       = Path("/home/mailsage/mailsage/data")
