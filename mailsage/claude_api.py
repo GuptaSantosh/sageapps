@@ -52,12 +52,16 @@ Security alerts, login attempts, unauthorized access, OTPs, suspicious activity,
 If none, write "None."
 Format each as: 1. *Sender Name* — subject in 8 words or fewer — one-line summary
 
-📬 FYI ([count])
-Worth knowing, no action needed. Bank transactions, account updates, shipping, confirmations. {"Max 5." if lookback_days == 1 else "Include all relevant items — do not cap."}
-Format each as: 1. *Sender Name* — subject in 8 words or fewer — one-line summary
+{"""📬 FYI ([count])
+Worth knowing, no action needed. Bank transactions, account updates, shipping, confirmations. Max 8.
+Format each as: 1. *Sender* — subject — one-line summary""" if lookback_days == 1 else """📬 FYI ([count])
+- Cap at 10 individual line items maximum
+- Group repeated senders: e.g. '*HDFC Bank* — 6 UPI transactions (1-3 May)' or '*Amazon* — 4 orders (1-3 May)'
+- Prioritise: bills due, large transactions, time-sensitive first
+- Collapse everything else into one final line: '+ N more — bank statements, shopping, routine updates'
+Format each as: 1. *Sender* — summary (D Mon)"""}
 
-🗑 NOISE SKIPPED
-One line only — total count + brief categories e.g. "40 emails — newsletters, promos, job alerts"
+🗑 {"NOISE SKIPPED\nOne line only — total count + brief categories e.g. \"40 emails — newsletters, promos, job alerts\"" if lookback_days == 1 else "NOISE — [count] emails — [2-3 category labels only]"}
 
 Rules:
 - ALWAYS start with the STATS line exactly as shown
