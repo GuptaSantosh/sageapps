@@ -354,7 +354,6 @@ def handle_update(update: dict):
         "❓ help":     ("help",     ""),
     }
 
-    log.info(f"Incoming text repr: {repr(text)}")
     mapped = button_map.get(text.lower())
     if mapped:
         clear_state(user_id)
