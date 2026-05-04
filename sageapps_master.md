@@ -119,8 +119,9 @@ cd /home/mailsage/mailsage && git pull && supervisorctl restart mailsage-bot mai
 
 ### supervisorctl services
 - `finsage` — RUNNING (uptime 10+ days)
-- `mailsage-bot` — RUNNING
-- `mailsage-auth` — RUNNING
+- `mailsage-bot` — RUNNING (command: venv/bin/python /home/mailsage/mailsage/mailsage/bot.py)
+- `mailsage-auth` — RUNNING (command: venv/bin/python /home/mailsage/mailsage/mailsage/auth_server.py)
+- Config: /etc/supervisor/conf.d/mailsage.conf — note scripts are in the nested mailsage/mailsage/ subdir
 
 ### Signal Profile (the config)
 - Filename: `signal.json` (internal), called "Signal Profile" in UI
