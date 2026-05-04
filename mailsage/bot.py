@@ -508,7 +508,7 @@ def handle_update(update: dict):
         handle_start(chat_id, user_id, first_name)
     elif cmd == "auth":
         handle_auth(chat_id, user_id)
-    elif cmd == "setup":
+    elif cmd == "setup" or cmd == "persona":
         handle_setup(chat_id, user_id)
     elif cmd == "reset":
         handle_reset(chat_id, user_id)
