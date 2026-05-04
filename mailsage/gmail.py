@@ -60,13 +60,25 @@ def fetch_emails(user_id: str, lookback_days: int = 1, max_results: int = 50) ->
     after   = int(since.timestamp())
     query   = f"after:{after}"
 
-    result  = service.users().messages().list(
-        userId    = "me",
-        q         = query,
-        maxResults = max_results
-    ).execute()
+    max_results = min(lookback_days * 50, 500)
+    messages    = []
+    page_token  = None
 
-    messages = result.get("messages", [])
+    while len(messages) < max_results:
+        batch_size = min(50, max_results - len(messages))
+        result     = service.users().messages().list(
+            userId     = "me",
+            q          = query,
+            maxResults = batch_size,
+            pageToken  = page_token
+        ).execute()
+
+        messages.extend(result.get("messages", []))
+        page_token = result.get("nextPageToken")
+
+        if not page_token:
+            break
+
     if not messages:
         return []
 
