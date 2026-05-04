@@ -27,16 +27,32 @@
 - **Key rule:** Claude explains, never decides trade amounts. Recommendation consistency = user trust.
 
 #### MailSage
-- **Status:** Live on DigitalOcean, Telegram bot @MailSageAI_bot, single user testing (May 3 2026)
+- **Status:** Live on DigitalOcean, Telegram bot @MailSageAI_bot, single user testing (May 4 2026)
 - **Value prop:** Email triage, daily brief, date-range briefs, smart noise filter — India-context aware
 - **Price:** ₹499–999/mo
 - **Signal Profile:** Priority senders + alert keywords + noise filters. Persists via data/{user_id}_user.json
 - **Architecture:** Telegram bot (bot.py) + Flask OAuth server (auth_server.py) + nginx SSL on api.sageapps.in. Gmail OAuth2 per user. Claude summarises via claude_api.py. Caching via cache.py (60 min TTL).
-- **Files:** bot.py, auth_server.py, gmail.py, claude_api.py, database.py, cache.py, keyboard.py, cron_brief.py
-- **Commands:** /brief, /brief 7, /brief 3may, /brief 3may 10may, /brief refresh, /auth, /settings, /add_priority, /add_keyword, /add_noise, /set_time, /help
-- **Features done:** Gmail OAuth multi-user, Signal Profile, 60min cache, date ranges, 7AM IST auto-brief cron, keyboard buttons, BotFather menu, conversation state for multi-step commands, stats header with noise ratio logic (hidden if <30% filtered), security alerts in ⚡ not 🔴
+- **Files:** bot.py, auth_server.py, gmail.py, claude_api.py, database.py, cache.py, keyboard.py, cron_brief.py, personas.py
+- **Commands:** /brief, /brief 7, /brief 3may, /brief 3may 10may, /brief [any] refresh, /auth, /settings, /persona, /setup, /reset, /add_priority, /add_keyword, /add_noise, /set_time, /admin, /help
+- **Features done (as of May 4 2026):**
+  - Gmail OAuth multi-user, Signal Profile, 60min cache, date ranges
+  - 7AM + 7PM IST auto-brief cron with time-aware greeting (🌅/🌆)
+  - Keyboard: 📬 Brief, 🔄 Refresh, ⚙️ Settings, 🎭 Persona, 🔗 Auth, ⏰ Set Time, 🗑 Reset, ❓ Help
+  - Inline feedback buttons on every brief (👍/👎/💬) — logged to feedback.log + feedback.json
+  - Persona presets: 💼 Salaried, 📈 Investor, 🏢 Founder, 👨‍👩‍👧 Family — triggered post-auth + /persona
+  - Two-step /reset with CONFIRM/Cancel inline buttons — deletes token, profile, cache
+  - /admin command (admin-only): user stats, persona breakdown, feedback summary, last brief time
+  - Paginated Gmail fetch: up to lookback_days×50 emails, max 500
+  - socket.setdefaulttimeout(30) on all Gmail API calls
+  - Numbered lists, bold senders, 8-word subject limit in Claude prompt
+  - Date appended per item on multi-day briefs (D Mon format), suppressed on daily
+  - FYI: max 8 (daily) vs grouped/capped at 10 with collapse line (multi-day)
+  - Stats header with noise ratio logic (hidden if <30% filtered)
+  - Security alerts in ⚡ not 🔴
 - **Droplet path:** /home/mailsage/mailsage/ — git connected to GitHub ✅
-- **Next:** Use daily for 5-7 days, tune prompt, first external user
+  - Code in nested subdir: /home/mailsage/mailsage/mailsage/
+  - Supervisor config: /etc/supervisor/conf.d/mailsage.conf
+- **Next:** First external user, tune prompt further
 
 ### 🟡 BUILD NEXT (in order)
 
