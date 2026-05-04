@@ -4,6 +4,7 @@ Commands: /start, /auth, /brief, /settings, /help
 """
 
 import os
+import json
 import time
 import logging
 from datetime import datetime
@@ -28,6 +29,7 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 BASE_URL       = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 IST            = pytz.timezone("Asia/Kolkata")
+DATA_DIR       = Path("/home/mailsage/mailsage/data")
 
 logging.basicConfig(
     level    = logging.INFO,
@@ -38,6 +40,10 @@ logging.basicConfig(
     ]
 )
 log = logging.getLogger(__name__)
+
+feedback_log = logging.getLogger("feedback")
+feedback_log.setLevel(logging.INFO)
+feedback_log.addHandler(logging.FileHandler("/home/mailsage/mailsage/logs/feedback.log"))
 
 
 # ── Telegram helpers ───────────────────────────────────────────
@@ -61,6 +67,35 @@ def send_typing(chat_id):
         requests.post(f"{BASE_URL}/sendChatAction", json={
             "chat_id": chat_id,
             "action":  "typing"
+        }, timeout=5)
+    except:
+        pass
+
+
+def send_brief_with_feedback(chat_id, text):
+    payload = {
+        "chat_id":    chat_id,
+        "text":       text,
+        "parse_mode": "Markdown",
+        "reply_markup": {
+            "inline_keyboard": [[
+                {"text": "👍 Useful",     "callback_data": "feedback_good"},
+                {"text": "👎 Not useful", "callback_data": "feedback_bad"},
+                {"text": "💬 Feedback",   "callback_data": "feedback_text"},
+            ]]
+        }
+    }
+    try:
+        requests.post(f"{BASE_URL}/sendMessage", json=payload, timeout=10)
+    except Exception as e:
+        log.error(f"send_brief_with_feedback() failed for {chat_id}: {e}")
+
+
+def answer_callback(callback_id, text=""):
+    try:
+        requests.post(f"{BASE_URL}/answerCallbackQuery", json={
+            "callback_query_id": callback_id,
+            "text": text,
         }, timeout=5)
     except:
         pass
@@ -164,7 +199,7 @@ def handle_brief(chat_id, user_id, arg=""):
     if not force_refresh:
         cached = get_cached_brief(user_id, lookback_days)
         if cached:
-            send(chat_id, f"📋 _{label} (cached):_\n\n{cached}")
+            send_brief_with_feedback(chat_id, f"📋 _{label} (cached):_\n\n{cached}")
             return
 
     if not check_api_limit(user_id):
@@ -188,7 +223,7 @@ def handle_brief(chat_id, user_id, arg=""):
         brief   = get_brief(emails, profile, label)
         increment_api_calls(user_id)
         set_cached_brief(user_id, lookback_days, brief)
-        send(chat_id, brief)
+        send_brief_with_feedback(chat_id, brief)
 
     except FileNotFoundError:
         send(chat_id, "⚠️ Gmail token missing. Please /auth again.")
@@ -299,6 +334,36 @@ def handle_help(chat_id):
 /help — Show this menu""")
 
 
+# ── Feedback handlers ──────────────────────────────────────────
+
+def handle_feedback_text(chat_id, user_id, text):
+    path = DATA_DIR / f"{user_id}_feedback.json"
+    entries = json.loads(path.read_text()) if path.exists() else []
+    entries.append({"ts": datetime.now(IST).isoformat(), "text": text})
+    path.write_text(json.dumps(entries, indent=2, ensure_ascii=False))
+    clear_state(user_id)
+    send(chat_id, "✅ Thanks — feedback saved. It helps make MailSage better.")
+    feedback_log.info(f"{user_id} 💬 {text}")
+
+
+def handle_callback_query(callback_query: dict):
+    callback_id = callback_query["id"]
+    user_id     = str(callback_query["from"]["id"])
+    chat_id     = str(callback_query["message"]["chat"]["id"])
+    data        = callback_query.get("data", "")
+
+    if data == "feedback_good":
+        answer_callback(callback_id, "Thanks! 👍")
+        feedback_log.info(f"{user_id} 👍")
+    elif data == "feedback_bad":
+        answer_callback(callback_id, "Noted 👎")
+        feedback_log.info(f"{user_id} 👎")
+    elif data == "feedback_text":
+        answer_callback(callback_id)
+        set_state(user_id, {"waiting_for": "feedback"})
+        send(chat_id, "💬 What would make it better?")
+
+
 # ── State handler ──────────────────────────────────────────────
 
 def handle_waiting_state(chat_id, user_id, text, state):
@@ -312,6 +377,8 @@ def handle_waiting_state(chat_id, user_id, text, state):
         handle_add_noise(chat_id, user_id, text)
     elif waiting_for == "time":
         handle_set_time(chat_id, user_id, text)
+    elif waiting_for == "feedback":
+        handle_feedback_text(chat_id, user_id, text)
     else:
         clear_state(user_id)
         send(chat_id, "I didn't understand that. Use the buttons below or send /help.")
@@ -320,6 +387,10 @@ def handle_waiting_state(chat_id, user_id, text, state):
 # ── Message router ─────────────────────────────────────────────
 
 def handle_update(update: dict):
+    if update.get("callback_query"):
+        handle_callback_query(update["callback_query"])
+        return
+
     message = update.get("message")
     if not message:
         return
