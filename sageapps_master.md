@@ -1,5 +1,5 @@
 # sageApps — Master Reference & Action Tracker
-*Last updated: April 28, 2026 | Built with Claude*
+*Last updated: May 4, 2026 | Built with Claude*
 
 ---
 
@@ -7,7 +7,7 @@
 
 **sageApps** is an umbrella of AI-powered personal and professional apps, each solving one high-frustration problem for Indian professionals. Each app is independent with its own value proposition, config, and pricing. A combined "Sage" tier unlocks cross-app intelligence.
 
-**Domain:** Buy `sageapps.ai` (~₹5,400/year via GoDaddy). Avoid `.in` — it signals India-only.
+**Domain:** sageapps.in (live, GitHub Pages). sageapps.ai still to buy (~₹5,400/year via GoDaddy).
 **Tagline:** *"AI that knows what matters to you."*
 **Core principle:** Every Sage app has a Signal Profile (personalizable config) that the user controls. AI applies default rules + user's custom rules. Users can update via Telegram menu or web UI. No silent updates — every config change is confirmed.
 
@@ -18,22 +18,25 @@
 ### 🟢 LIVE / BUILDING NOW
 
 #### FinSage
-- **Status:** Live on DigitalOcean, 12 users, Telegram bot
+- **Status:** Live on DigitalOcean, 12 users, Telegram bot @FinSageAI_bot
 - **Value prop:** Daily portfolio briefing + Nifty signals, India-first
 - **Price:** ₹299–799/mo
 - **Milestone:** 5 users opening daily briefings unprompted. No marketing until it survives a Nifty down day cleanly.
-- **Tech:** DigitalOcean Bangalore, supervisorctl, GitHub CI, Claude API, CLAUDE.md context
+- **Tech:** DigitalOcean Bangalore, supervisorctl, GitHub, Claude API
+- **Droplet path:** check with `supervisorctl cat finsage` — not yet git-connected
 - **Key rule:** Claude explains, never decides trade amounts. Recommendation consistency = user trust.
 
 #### MailSage
-- **Status:** Artifact built (Claude.ai), sendPrompt flow working
-- **Value prop:** Email triage, daily brief, hourly alerts, smart noise filter — India-context aware
+- **Status:** Live on DigitalOcean, Telegram bot @MailSageAI_bot, single user testing (May 3 2026)
+- **Value prop:** Email triage, daily brief, date-range briefs, smart noise filter — India-context aware
 - **Price:** ₹499–999/mo
-- **Signal Profile:** Priority senders + alert keywords + noise filters. Persists via storage API.
-- **Architecture:** User edits Signal Profile in artifact → clicks "Get Brief" → sendPrompt triggers Claude → Claude runs Gmail MCP → returns structured brief in chat
-- **Feedback loop:** Post-brief voluntary checklist. User ticks off actioned items → teaches Signal Profile.
-- **Competitor benchmark:** alfred_ $24.99/mo, Superhuman $30–40/mo. India pricing wins.
-- **Next:** Port to FinSage Telegram bot as `/brief` command with 7AM cron.
+- **Signal Profile:** Priority senders + alert keywords + noise filters. Persists via data/{user_id}_user.json
+- **Architecture:** Telegram bot (bot.py) + Flask OAuth server (auth_server.py) + nginx SSL on api.sageapps.in. Gmail OAuth2 per user. Claude summarises via claude_api.py. Caching via cache.py (60 min TTL).
+- **Files:** bot.py, auth_server.py, gmail.py, claude_api.py, database.py, cache.py, keyboard.py, cron_brief.py
+- **Commands:** /brief, /brief 7, /brief 3may, /brief 3may 10may, /brief refresh, /auth, /settings, /add_priority, /add_keyword, /add_noise, /set_time, /help
+- **Features done:** Gmail OAuth multi-user, Signal Profile, 60min cache, date ranges, 7AM IST auto-brief cron, keyboard buttons, BotFather menu, conversation state for multi-step commands, stats header with noise ratio logic (hidden if <30% filtered), security alerts in ⚡ not 🔴
+- **Droplet path:** /home/mailsage/mailsage/ — git connected to GitHub ✅
+- **Next:** Use daily for 5-7 days, tune prompt, first external user
 
 ### 🟡 BUILD NEXT (in order)
 
@@ -79,12 +82,52 @@
 
 ## 3. Architecture & Tech Principles
 
+### GitHub Repo (GuptaSantosh/sageapps) — Public
+```
+sageapps/
+├── sageapps_master.md       ← project brain, version controlled
+├── index.html               ← sageapps.in landing page (GitHub Pages)
+├── CNAME                    ← sageapps.in domain mapping
+├── .gitignore               ← .env, credentials.json, data/, logs/, venv/
+├── mailsage/                ← real code, pushed May 4 2026 ✅
+│   ├── bot.py, auth_server.py, gmail.py, claude_api.py
+│   ├── database.py, cache.py, keyboard.py, cron_brief.py
+│   └── .env.example
+├── finsage/                 ← code present, not yet git-connected on droplet
+└── cleansage/               ← placeholder only
+```
+
+### DigitalOcean Droplet (134.209.144.250, Bangalore)
+```
+/home/mailsage/mailsage/     ← MailSage live, git-connected ✅
+    .env                     ← secrets, never in GitHub
+    credentials.json         ← secrets, never in GitHub
+    data/                    ← user data, never in GitHub
+    venv/                    ← Python env, never in GitHub
+
+/home/finsage/? (check)      ← FinSage live, not yet git-connected
+```
+
+### Deploy Flow (MailSage)
+```bash
+# MacBook: edit → push
+git add . && git commit -m "fix: ..." && git push
+
+# Droplet: pull → restart
+cd /home/mailsage/mailsage && git pull && supervisorctl restart mailsage-bot mailsage-auth
+```
+
+### supervisorctl services
+- `finsage` — RUNNING (uptime 10+ days)
+- `mailsage-bot` — RUNNING
+- `mailsage-auth` — RUNNING
+
 ### Signal Profile (the config)
 - Filename: `signal.json` (internal), called "Signal Profile" in UI
 - Three buckets: `priority_senders`, `alert_keywords`, `noise_filters`
-- Plus: `context_tags` (ongoing situations like "Vauld creditor"), `connected_apps`, `notification_channel`, `brief_time`
+- Plus: `context_tags`, `connected_apps`, `notification_channel`, `brief_time`
 - Validation: Every save validates structure. If invalid → silent rollback to `last_good_state`. No crashes.
-- Update channels: Telegram inline menu OR web UI chip editor. AI suggests updates based on behavior patterns.
+- Update channels: Telegram inline menu OR web UI chip editor.
 
 ### MCP Layer
 - Each data source is a separate MCP server
@@ -137,10 +180,10 @@
 
 ### How to reach them (in order)
 1. **Don't sell — share the problem.** Post on r/IndiaInvestments: "I built a Telegram bot that gives me a daily MF + Nifty brief — happy to share if anyone wants to try." No pitch, just utility.
-2. **LinkedIn content** (you already do this at 3,699 impressions/week): one post showing a real FinSage brief screenshot (anonymized). "This is what my morning looks like now."
-3. **Your IIM + S&P network** — free Elite access to first 20 people, ask for feedback in return. Already planned.
+2. **LinkedIn content** (3,699 impressions/week): one post showing a real FinSage brief screenshot (anonymized).
+3. **Your IIM + S&P network** — free Elite access to first 20 people, ask for feedback in return.
 4. **ProductHunt launch** — FinSage first, then MailSage. Launch on a Tuesday morning IST.
-5. **SEO long-term** — "best AI portfolio tracker India", "Gmail cleanup tool India", "ITR assistant AI" — these are low competition, high intent.
+5. **SEO long-term** — "best AI portfolio tracker India", "Gmail cleanup tool India", "ITR assistant AI".
 
 ### Pricing strategy
 - Start lower than you think (₹299–499 for first app). First 50 users are feedback, not revenue.
@@ -165,52 +208,63 @@
 
 ---
 
-## 6. Conversation Consolidation Strategy
+## 6. Conversation & Session Strategy
 
-### The problem
-Long Claude conversations = more tokens = slower, more expensive, context drift.
+### Claude Project setup
+- Project: "sageApps" in Claude.ai
+- System prompt: compressed context below
+- Rule: New day = new chat. Same day, same task = continue. Switching apps = new chat.
+- Always start new chat with updated sageapps_master.md uploaded
 
-### The fix: Claude Projects
-1. Create a **"sageApps"** Project in Claude.ai (left panel → Projects → New)
-2. Set the project system prompt to a compressed version of this document (key decisions, current state, next actions)
-3. Every new coding/planning session starts in the project — full context, fresh tokens
-4. This document IS that compressed context
+### Code editing rules (token efficiency)
+- Use str_replace style edits — changed function only, not full file
+- Full file rewrites only when 3+ functions change simultaneously
+- Single line changes via sed commands
 
-### What goes in project system prompt (paste this)
+### What goes in project system prompt
 ```
 You are working with Santosh on sageApps — a family of AI Sage apps for Indian professionals.
-Current apps: FinSage (live, 12 users, Telegram), MailSage (artifact built, sendPrompt flow).
+Current apps: FinSage (live, 12 users, @FinSageAI_bot), MailSage (live, @MailSageAI_bot, single user testing).
 Next: CleanSage, TradeSage, ExecSage, DocSage, TaxSage.
-Domain: sageapps.ai. Tech: DigitalOcean, Python, Claude API, Telegram bot, MCP connectors.
+GitHub: github.com/GuptaSantosh/sageapps (public monorepo).
+Droplet: 134.209.144.250 (DigitalOcean Bangalore). MailSage at /home/mailsage/mailsage/, git-connected.
+Tech: Python, Telegram bots, Claude API, supervisorctl, nginx, GitHub Pages for landing.
 Key constraint: Cost controls from day 1. Free tier = 3 API calls/day. Cache briefs. Signal Profile = user config.
 Santosh prefers: direct feedback, no filler, constraints over options, one focus at a time.
-Reference: [link to this doc in Drive]
 ```
 
 ---
 
-## 7. Daily Action Plan (Start Here)
+## 7. Action Plan
+
+### Done ✅
+- sageapps.in live (GitHub Pages)
+- MailSage live on Telegram (@MailSageAI_bot), single user testing
+- GitHub monorepo set up (GuptaSantosh/sageapps)
+- MailSage real code pushed to GitHub
+- Droplet /home/mailsage/mailsage/ git-connected to GitHub
+- Deploy flow established (push on MacBook → pull on droplet → restart)
+- sageapps_master.md in GitHub repo ✅
 
 ### This week
-- [ ] Buy `sageapps.ai` domain (GoDaddy, ~₹5,400)
-- [ ] Create "sageApps" Claude Project, paste compressed system prompt above
-- [ ] Add `/brief` command to FinSage Telegram bot (reuse MailSage logic)
-- [ ] Add 7AM IST cron job for auto-brief on FinSage
+- [ ] Use MailSage daily — tune Claude prompt based on real errors
+- [ ] First external user on MailSage
+- [ ] Push updated sageapps_master.md to GitHub after each session
+- [ ] Connect FinSage droplet path to GitHub (when ready)
 
 ### Next week
-- [ ] Port Signal Profile to FinSage server (`signal.json` per user)
-- [ ] Add Telegram inline menu for signal profile editing (/settings command)
 - [ ] Post on r/IndiaInvestments about FinSage — no pitch, just utility
+- [ ] Port Signal Profile to FinSage server (signal.json per user)
+- [ ] Add Telegram inline menu for FinSage signal profile (/settings)
 
 ### This month
-- [ ] 5 FinSage users opening daily brief unprompted (current milestone)
-- [ ] Free Elite access to 10 IIM/S&P contacts — collect structured feedback
-- [ ] Scoping doc for CleanSage (Gmail storage cleanup)
-- [ ] Start sageapps.ai landing page (single page, one app hero, waitlist)
+- [ ] 5 FinSage users opening daily brief unprompted
+- [ ] Free Elite access to 10 IIM/S&P contacts — structured feedback
+- [ ] Scoping doc for CleanSage
+- [ ] Buy sageapps.ai domain
 
 ### Next month
 - [ ] CleanSage MVP (Gmail large attachment finder + batch delete with preview)
-- [ ] MailSage on Telegram bot (port from Claude artifact)
 - [ ] ProductHunt draft for FinSage launch
 
 ---
@@ -223,4 +277,3 @@ Reference: [link to this doc in Drive]
 - Don't launch on ProductHunt before the app survives a Nifty down day (FinSage) or a high-email day (MailSage)
 - Don't offer lifetime deals
 - Don't build features without a real user asking for it first
-
