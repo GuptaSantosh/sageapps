@@ -380,10 +380,22 @@ def handle_help(chat_id):
 
 
 def handle_reset(chat_id, user_id):
-    update_signal_profile(user_id, DEFAULT_SIGNAL)
-    invalidate_cache(user_id)
     clear_state(user_id)
-    send(chat_id, "🗑 *Signal Profile cleared.* All priority senders, keywords, and noise filters removed.\n\nUse 🎭 Persona to pick a preset, or /settings to rebuild manually.")
+    payload = {
+        "chat_id":    chat_id,
+        "text":       "⚠️ This will permanently delete your Signal Profile, Gmail connection, persona, and all cached briefs. This cannot be undone.\n\nType CONFIRM to proceed or tap Cancel.",
+        "parse_mode": "Markdown",
+        "reply_markup": {
+            "inline_keyboard": [[
+                {"text": "✅ CONFIRM", "callback_data": "reset_confirm"},
+                {"text": "❌ Cancel",  "callback_data": "reset_cancel"},
+            ]]
+        }
+    }
+    try:
+        requests.post(f"{BASE_URL}/sendMessage", json=payload, timeout=10)
+    except Exception as e:
+        log.error(f"handle_reset() failed for {chat_id}: {e}")
 
 
 # ── Feedback handlers ──────────────────────────────────────────
@@ -414,6 +426,18 @@ def handle_callback_query(callback_query: dict):
         answer_callback(callback_id)
         set_state(user_id, {"waiting_for": "feedback"})
         send(chat_id, "💬 What would make it better?")
+    elif data == "reset_confirm":
+        answer_callback(callback_id)
+        for path in DATA_DIR.glob(f"{user_id}_cache_*.json"):
+            path.unlink(missing_ok=True)
+        for fname in [f"{user_id}_user.json", f"{user_id}_token.json"]:
+            (DATA_DIR / fname).unlink(missing_ok=True)
+        clear_state(user_id)
+        send(chat_id, "✅ Account reset. Send /start to begin again.")
+        log.info(f"Account reset for {user_id}")
+    elif data == "reset_cancel":
+        answer_callback(callback_id)
+        send(chat_id, "👍 Reset cancelled. Your data is safe.")
     elif data.startswith("persona_"):
         persona_key = data[len("persona_"):]
         answer_callback(callback_id)
