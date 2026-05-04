@@ -198,16 +198,30 @@ def handle_start(chat_id, user_id, first_name):
         user["onboarded"] = True
         save_user(user_id, user)
     clear_state(user_id)
-    send(chat_id, f"""👋 Welcome to *MailSage*, {first_name}!
-
-I give you a daily AI brief of your Gmail — what needs action, what to know, what to skip.
-
-*Getting started:*
-1️⃣ /auth — Connect your Gmail
-2️⃣ /brief — Get your first email brief
-3️⃣ /settings — Customise your Signal Profile
-
-Type /help or use the buttons below.""")
+    msg = (
+        "👋 *Welcome to MailSage*\n\n"
+        "Your inbox has hundreds of unread emails.\n"
+        "You'll act on maybe 10 today.\n\n"
+        "MailSage reads all of them and tells you only "
+        "what matters — in 60 seconds, every morning.\n\n"
+        "━━━━━━━━━━━━━━━\n"
+        "🔒 *Your privacy, guaranteed*\n"
+        "• Gmail connected via Google OAuth only\n"
+        "• Your emails are never stored or logged\n"
+        "• AI reads metadata + brief snippet only\n"
+        "• Disconnect anytime with /reset\n\n"
+        "━━━━━━━━━━━━━━━\n"
+        "✅ Daily 7AM brief — action, alerts, FYI\n"
+        "⚡ Security alerts — logins, OTPs, suspicious activity\n"
+        "🔇 Smart noise filter — newsletters gone\n"
+        "🎯 Signal Profile — you control what surfaces\n\n"
+        "━━━━━━━━━━━━━━━\n"
+        "*Let's set you up in 2 minutes.*\n\n"
+        "Step 1 of 3 — Who are you?\n"
+        "Pick the profile that fits best 👇"
+    )
+    send(chat_id, msg)
+    send_persona_picker(chat_id)
 
 
 def handle_auth(chat_id, user_id):
