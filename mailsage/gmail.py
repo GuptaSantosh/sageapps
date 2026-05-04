@@ -5,6 +5,7 @@ Fetches emails using stored OAuth token per user.
 
 import json
 import logging
+import socket
 from pathlib import Path
 from datetime import datetime, timedelta
 import pytz
@@ -50,6 +51,7 @@ def fetch_emails(user_id: str, lookback_days: int = 1, max_results: int = 50) ->
     Fetch emails from Gmail for the past lookback_days.
     Returns list of simplified email dicts.
     """
+    socket.setdefaulttimeout(30)
     creds   = _load_credentials(str(user_id))
     service = build("gmail", "v1", credentials=creds)
 
@@ -62,7 +64,7 @@ def fetch_emails(user_id: str, lookback_days: int = 1, max_results: int = 50) ->
         userId    = "me",
         q         = query,
         maxResults = max_results
-    ).execute(num_retries=0, timeout=30)
+    ).execute()
 
     messages = result.get("messages", [])
     if not messages:
@@ -76,7 +78,7 @@ def fetch_emails(user_id: str, lookback_days: int = 1, max_results: int = 50) ->
                 id      = msg["id"],
                 format  = "metadata",
                 metadataHeaders = ["From", "Subject", "Date"]
-            ).execute(num_retries=0, timeout=30)
+            ).execute()
 
             headers = {h["name"]: h["value"] for h in full["payload"]["headers"]}
             snippet = full.get("snippet", "")[:200]
