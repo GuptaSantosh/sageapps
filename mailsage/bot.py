@@ -31,6 +31,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 BASE_URL       = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 IST            = pytz.timezone("Asia/Kolkata")
 DATA_DIR       = Path("/home/mailsage/mailsage/data")
+ADMIN_CHAT_ID  = os.getenv("ADMIN_CHAT_ID", "")
 
 logging.basicConfig(
     level    = logging.INFO,
@@ -398,6 +399,98 @@ def handle_reset(chat_id, user_id):
         log.error(f"handle_reset() failed for {chat_id}: {e}")
 
 
+# ── Admin handler ──────────────────────────────────────────────
+
+def handle_admin(chat_id, user_id):
+    if str(user_id) != str(ADMIN_CHAT_ID):
+        return
+
+    now = datetime.now(IST)
+
+    # User stats
+    persona_keys  = {"salaried", "investor", "founder", "family"}
+    persona_emoji = {"salaried": "💼", "investor": "📈", "founder": "🏢", "family": "👨\u200d👩\u200d👧", "custom": "⚙️"}
+    persona_counts = {k: 0 for k in list(persona_keys) + ["custom"]}
+    total_onboarded = gmail_connected = active_24h = active_7d = 0
+
+    for uf in DATA_DIR.glob("*_user.json"):
+        uid = uf.stem.replace("_user", "")
+        try:
+            data = json.loads(uf.read_text())
+        except:
+            continue
+
+        if data.get("onboarded"):
+            total_onboarded += 1
+        if (DATA_DIR / f"{uid}_token.json").exists():
+            gmail_connected += 1
+
+        tags    = data.get("signal_profile", {}).get("context_tags", [])
+        persona = next((t for t in tags if t in persona_keys), "custom")
+        persona_counts[persona] += 1
+
+        cache_files = list(DATA_DIR.glob(f"{uid}_cache_*.json"))
+        if cache_files:
+            latest_mtime = max(cf.stat().st_mtime for cf in cache_files)
+            age = now - datetime.fromtimestamp(latest_mtime, tz=IST)
+            if age.total_seconds() <= 86400:
+                active_24h += 1
+            if age.days <= 7:
+                active_7d += 1
+
+    # Feedback stats from feedback.log
+    fb_log   = Path("/home/mailsage/mailsage/logs/feedback.log")
+    thumbs_up = thumbs_down = 0
+    text_feedbacks = []
+
+    if fb_log.exists():
+        for line in fb_log.read_text().splitlines():
+            if "👍" in line:
+                thumbs_up += 1
+            elif "👎" in line:
+                thumbs_down += 1
+            elif "💬" in line:
+                try:
+                    meta, text = line.split("💬", 1)
+                    uid = meta.strip().split()[-1]
+                    text_feedbacks.append((uid, text.strip()))
+                except:
+                    pass
+
+    fb_lines = "\n".join(f'- "{t}" — user {uid}' for uid, t in text_feedbacks[-5:]) or "- No text feedback yet"
+
+    # Last brief sent
+    all_cache = list(DATA_DIR.glob("*_cache_*.json"))
+    if all_cache:
+        age_secs = (now - datetime.fromtimestamp(max(f.stat().st_mtime for f in all_cache), tz=IST)).total_seconds()
+        last_brief = f"{int(age_secs // 60)} min ago" if age_secs < 3600 else f"{int(age_secs // 3600)}h ago"
+    else:
+        last_brief = "never"
+
+    persona_lines = "\n".join(
+        f"- {persona_emoji[p]} {p.title()}: {c}"
+        for p, c in persona_counts.items() if c > 0
+    ) or "- No personas set yet"
+
+    send(chat_id, f"""📊 *MailSage Admin Stats*
+
+👥 *Users*
+- Total onboarded: {total_onboarded}
+- Gmail connected: {gmail_connected}
+- Active today: {active_24h}
+- Active this week: {active_7d}
+
+🎭 *Personas*
+{persona_lines}
+
+💬 *Feedback*
+- 👍 {thumbs_up}  👎 {thumbs_down}
+{fb_lines}
+
+🕐 Last brief sent: {last_brief}""")
+    log.info(f"Admin stats sent to {user_id}")
+
+
 # ── Feedback handlers ──────────────────────────────────────────
 
 def handle_feedback_text(chat_id, user_id, text):
@@ -550,6 +643,8 @@ def handle_update(update: dict):
         handle_set_time(chat_id, user_id, arg)
     elif cmd == "help":
         handle_help(chat_id)
+    elif cmd == "admin":
+        handle_admin(chat_id, user_id)
     else:
         send(chat_id, "I didn't understand that. Use the buttons below or send /help.")
 
