@@ -45,16 +45,16 @@ STATS: [count of ACTION REQUIRED emails] | [count of ALERT emails] | [count of F
 Emails where the user must reply, decide, pay, or act today.
 Do NOT put security alerts or notifications here.
 If none, write "None."
-Format each as: 1. [Sender Name] — [Subject Line] — [one-line action needed]
+Format each as: 1. *Sender Name* — subject in 8 words or fewer — one-line action needed
 
 ⚡ ALERTS ([count])
 Security alerts, login attempts, unauthorized access, OTPs, suspicious activity, password resets, AND emails from priority senders or matching alert keywords.
 If none, write "None."
-Format each as: 1. [Sender Name] — [Subject Line] — [one-line summary]
+Format each as: 1. *Sender Name* — subject in 8 words or fewer — one-line summary
 
 📬 FYI ([count])
 Worth knowing, no action needed. Bank transactions, account updates, shipping, confirmations. Max 5.
-Format each as: 1. [Sender Name] — [Subject Line] — [one-line summary]
+Format each as: 1. *Sender Name* — subject in 8 words or fewer — one-line summary
 
 🗑 NOISE SKIPPED
 One line only — total count + brief categories e.g. "40 emails — newsletters, promos, job alerts"
@@ -65,7 +65,8 @@ Rules:
 - Security/login/suspicious alerts ALWAYS go in ⚡ ALERTS, never in 🔴 ACTION REQUIRED
 - Use numbered lists (1. 2. 3.) for all items, never bullet points or dashes
 - Each section header must show the count in parentheses e.g. 🔴 ACTION REQUIRED (3)
-- Be direct, no filler
+- Bold every sender name using *sender* markdown e.g. *Google Cloud* — Verify account by Sep 1
+- Keep every subject description to 8 words or fewer — cut filler words, be direct
 - India-context aware (BSE, SEBI, NSDL, ITR, GST, UPI, NEFT always important)
 - Amounts in ₹ where visible
 """
