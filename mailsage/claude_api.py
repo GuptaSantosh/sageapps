@@ -13,7 +13,7 @@ log    = logging.getLogger(__name__)
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
-def build_prompt(emails: list[dict], signal_profile: dict) -> str:
+def build_prompt(emails: list[dict], signal_profile: dict, lookback_days: int = 1) -> str:
     priority_senders = signal_profile.get("priority_senders", [])
     alert_keywords   = signal_profile.get("alert_keywords", [])
     noise_filters    = signal_profile.get("noise_filters", [])
@@ -69,6 +69,7 @@ Rules:
 - Keep every subject description to 8 words or fewer — cut filler words, be direct
 - India-context aware (BSE, SEBI, NSDL, ITR, GST, UPI, NEFT always important)
 - Amounts in ₹ where visible
+{"- Do NOT include dates on any item — this is a daily brief" if lookback_days == 1 else "- Append the email date at the end of each item summary in format (D Mon) e.g. (2 May), (28 Apr). Inside parentheses, after the summary, before the newline. Use the Date field from the email metadata."}
 """
     return prompt
 
@@ -121,11 +122,11 @@ def build_header(stats: dict, total_emails: int, label: str) -> str:
     )
 
 
-def get_brief(emails: list[dict], signal_profile: dict, label: str = "last 24 hours") -> str:
+def get_brief(emails: list[dict], signal_profile: dict, label: str = "last 24 hours", lookback_days: int = 1) -> str:
     if not emails:
         return "📭 No new emails in this period."
 
-    prompt = build_prompt(emails, signal_profile)
+    prompt = build_prompt(emails, signal_profile, lookback_days)
 
     try:
         response = client.messages.create(

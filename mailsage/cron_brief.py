@@ -85,7 +85,7 @@ def send_auto_brief(user_id: str):
     try:
         profile  = get_signal_profile(user_id)
         emails   = fetch_emails(user_id, lookback_days=1)
-        brief    = get_brief(emails, profile, "last 24 hours")
+        brief    = get_brief(emails, profile, "last 24 hours", lookback_days=1)
         increment_api_calls(user_id)
         set_cached_brief(user_id, 1, brief)
 

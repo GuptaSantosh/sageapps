@@ -265,7 +265,7 @@ def handle_brief(chat_id, user_id, arg=""):
         profile = get_signal_profile(user_id)
         emails  = fetch_emails(user_id, lookback_days=lookback_days)
         send_typing(chat_id)
-        brief   = get_brief(emails, profile, label)
+        brief   = get_brief(emails, profile, label, lookback_days)
         increment_api_calls(user_id)
         set_cached_brief(user_id, lookback_days, brief)
         send_brief_with_feedback(chat_id, brief)
