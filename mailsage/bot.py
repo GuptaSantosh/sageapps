@@ -379,6 +379,13 @@ def handle_help(chat_id):
 /help — Show this menu""")
 
 
+def handle_reset(chat_id, user_id):
+    update_signal_profile(user_id, DEFAULT_SIGNAL)
+    invalidate_cache(user_id)
+    clear_state(user_id)
+    send(chat_id, "🗑 *Signal Profile cleared.* All priority senders, keywords, and noise filters removed.\n\nUse 🎭 Persona to pick a preset, or /settings to rebuild manually.")
+
+
 # ── Feedback handlers ──────────────────────────────────────────
 
 def handle_feedback_text(chat_id, user_id, text):
@@ -467,6 +474,10 @@ def handle_update(update: dict):
             "📬 brief":    None,
             "🔄 refresh":  None,
             "⚙️ settings": None,
+            "🎭 persona":  None,
+            "🔗 auth":     None,
+            "⏰ set time": None,
+            "🗑 reset":    None,
             "❓ help":     None,
         }
         if text.lower() not in button_map:
@@ -478,6 +489,10 @@ def handle_update(update: dict):
         "📬 brief":    ("brief",    ""),
         "🔄 refresh":  ("brief",    "refresh"),
         "⚙️ settings": ("settings", ""),
+        "🎭 persona":  ("setup",    ""),
+        "🔗 auth":     ("auth",     ""),
+        "⏰ set time": ("set_time", ""),
+        "🗑 reset":    ("reset",    ""),
         "❓ help":     ("help",     ""),
     }
 
@@ -495,6 +510,8 @@ def handle_update(update: dict):
         handle_auth(chat_id, user_id)
     elif cmd == "setup":
         handle_setup(chat_id, user_id)
+    elif cmd == "reset":
+        handle_reset(chat_id, user_id)
     elif cmd == "brief":
         handle_brief(chat_id, user_id, arg)
     elif cmd == "settings":

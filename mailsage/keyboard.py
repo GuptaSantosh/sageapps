@@ -6,7 +6,9 @@ def main_menu():
     return {
         "keyboard": [
             ["📬 Brief", "🔄 Refresh"],
-            ["⚙️ Settings", "❓ Help"]
+            ["⚙️ Settings", "🎭 Persona"],
+            ["🔗 Auth", "⏰ Set Time"],
+            ["🗑 Reset", "❓ Help"]
         ],
         "resize_keyboard": True,
         "persistent": True
