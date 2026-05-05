@@ -1,4 +1,3 @@
-import base64
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -7,7 +6,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from database import save_scan_result
-from cache import cache_scan
+from cache import cache_scan, invalidate_cache
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -383,3 +382,68 @@ def run_full_scan(user_id: str, credentials) -> dict:
     cache_scan(user_id, breakdown, ttl=3600)
 
     return breakdown
+
+
+# ---------------------------------------------------------------------------
+# 7. Empty trash / spam (write operations)
+# ---------------------------------------------------------------------------
+
+def empty_trash(user_id: str, credentials) -> dict:
+    """
+    Permanently deletes all messages in TRASH.
+    Returns {success, freed_mb, deleted_count}.
+    """
+    service = _gmail_service(credentials)
+
+    # Get size estimate before delete
+    stats = get_spam_and_trash_size(credentials)
+    freed_mb = stats["trash_size_mb"]
+    deleted_count = stats["trash_count"]
+
+    try:
+        service.users().messages().batchDelete(
+            userId="me",
+            body={"ids": [], "labelIds": ["TRASH"]},
+        ).execute()
+    except HttpError:
+        # batchDelete with labelIds not supported on all accounts —
+        # fall back to listing + deleting in batches
+        stubs = _list_messages_all(service, "label:trash", max_results=5000)
+        ids = [s["id"] for s in stubs]
+        for i in range(0, len(ids), 1000):
+            try:
+                service.users().messages().batchDelete(
+                    userId="me",
+                    body={"ids": ids[i:i + 1000]},
+                ).execute()
+            except HttpError:
+                pass
+
+    invalidate_cache(user_id)
+    return {"success": True, "freed_mb": freed_mb, "deleted_count": deleted_count}
+
+
+def empty_spam(user_id: str, credentials) -> dict:
+    """
+    Permanently deletes all messages in SPAM.
+    Returns {success, freed_mb, deleted_count}.
+    """
+    service = _gmail_service(credentials)
+
+    stats = get_spam_and_trash_size(credentials)
+    freed_mb = stats["spam_size_mb"]
+    deleted_count = stats["spam_count"]
+
+    stubs = _list_messages_all(service, "label:spam", max_results=5000)
+    ids = [s["id"] for s in stubs]
+    for i in range(0, len(ids), 1000):
+        try:
+            service.users().messages().batchDelete(
+                userId="me",
+                body={"ids": ids[i:i + 1000]},
+            ).execute()
+        except HttpError:
+            pass
+
+    invalidate_cache(user_id)
+    return {"success": True, "freed_mb": freed_mb, "deleted_count": deleted_count}

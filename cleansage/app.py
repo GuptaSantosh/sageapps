@@ -1,16 +1,43 @@
 import os
+from datetime import datetime, timezone
 from flask import Flask, redirect, request, session, render_template, jsonify, url_for
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from auth import get_auth_url, handle_callback
+from auth import get_auth_url, handle_callback, get_credentials
 from signal import load_profile, save_profile, update_field
-from database import get_user, create_user, update_user
+from database import get_user, create_user, update_user, get_tips, get_latest_scan
 from tips import generate_tips, _detect_persona
+from gmail import run_full_scan, empty_trash, empty_spam
+from cache import get_cached_scan, invalidate_cache
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
+
+
+def _time_ago(iso_str: str) -> str:
+    """Convert UTC ISO timestamp to human 'X minutes ago' string."""
+    try:
+        dt = datetime.fromisoformat(iso_str).replace(tzinfo=timezone.utc)
+        diff = int((datetime.now(timezone.utc) - dt).total_seconds())
+        if diff < 60:
+            return "just now"
+        if diff < 3600:
+            return f"{diff // 60} minute{'s' if diff // 60 != 1 else ''} ago"
+        if diff < 86400:
+            return f"{diff // 3600} hour{'s' if diff // 3600 != 1 else ''} ago"
+        return f"{diff // 86400} day{'s' if diff // 86400 != 1 else ''} ago"
+    except Exception:
+        return "unknown"
+
+
+@app.template_filter("commify")
+def commify(n):
+    try:
+        return f"{int(n):,}"
+    except (ValueError, TypeError):
+        return n
 
 
 @app.route("/")
@@ -114,8 +141,86 @@ def onboard_complete():
 @app.route("/dashboard")
 def dashboard():
     if not session.get("authenticated"):
-        return redirect(url_for("index"))
-    return render_template("dashboard.html")
+        return redirect(url_for("auth_login"))
+
+    user_id = session["user_id"]
+    user = get_user(user_id)
+    if not user or not user.get("onboarding_done"):
+        return redirect(url_for("onboard"))
+
+    creds = get_credentials(user_id)
+    if not creds:
+        return redirect(url_for("auth_login"))
+
+    # Use cache if fresh, else run full scan
+    scan = get_cached_scan(user_id)
+    if not scan:
+        scan = run_full_scan(user_id, creds)
+
+    # Last scanned time
+    latest = get_latest_scan(user_id)
+    scanned_ago = _time_ago(latest["scanned_at"]) if latest else "never"
+
+    # Pending tips (top 2 active)
+    tips = get_tips(user_id, status="active")
+
+    return render_template(
+        "dashboard.html",
+        scan=scan,
+        scanned_ago=scanned_ago,
+        tips=tips,
+    )
+
+
+@app.route("/action/empty-trash", methods=["POST"])
+def action_empty_trash():
+    if not session.get("authenticated"):
+        return jsonify({"success": False, "error": "not authenticated"}), 401
+
+    data = request.get_json(silent=True) or {}
+    if not data.get("confirm"):
+        return jsonify({"success": False, "error": "confirm required"}), 400
+
+    user_id = session["user_id"]
+    creds = get_credentials(user_id)
+    if not creds:
+        return jsonify({"success": False, "error": "credentials expired"}), 401
+
+    result = empty_trash(user_id, creds)
+    return jsonify(result)
+
+
+@app.route("/action/empty-spam", methods=["POST"])
+def action_empty_spam():
+    if not session.get("authenticated"):
+        return jsonify({"success": False, "error": "not authenticated"}), 401
+
+    data = request.get_json(silent=True) or {}
+    if not data.get("confirm"):
+        return jsonify({"success": False, "error": "confirm required"}), 400
+
+    user_id = session["user_id"]
+    creds = get_credentials(user_id)
+    if not creds:
+        return jsonify({"success": False, "error": "credentials expired"}), 401
+
+    result = empty_spam(user_id, creds)
+    return jsonify(result)
+
+
+@app.route("/action/rescan", methods=["POST"])
+def action_rescan():
+    if not session.get("authenticated"):
+        return redirect(url_for("auth_login"))
+
+    user_id = session["user_id"]
+    creds = get_credentials(user_id)
+    if not creds:
+        return redirect(url_for("auth_login"))
+
+    invalidate_cache(user_id)
+    run_full_scan(user_id, creds)
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/health")
