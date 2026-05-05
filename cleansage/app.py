@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from auth import get_auth_url, handle_callback, get_credentials
-from signal import load_profile, save_profile, update_field
+from signal_profile import load_profile, save_profile, update_field
 from database import get_user, create_user, update_user, get_tips, get_latest_scan, get_deleted_items, link_telegram
 from tips import generate_tips, _detect_persona
 from gmail import run_full_scan, empty_trash, empty_spam, move_to_trash_bulk, fetch_messages_for_preview
