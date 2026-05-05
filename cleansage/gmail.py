@@ -356,24 +356,71 @@ def get_old_promotions(credentials, days: int = 90) -> dict:
 # 6. Full scan
 # ---------------------------------------------------------------------------
 
+# Per-step time budgets (seconds). Steps exceeding their budget are skipped.
+_STEP_TIMEOUT = {
+    "quota":            10,
+    "spam_trash":       15,
+    "large_attachments": 30,
+    "old_promotions":   30,
+    "bulk_senders":     30,
+}
+
+# Safe defaults returned when a step is skipped
+_STEP_DEFAULTS = {
+    "quota":             {"total_gb": 15.0, "used_gb": 0.0, "percent_used": 0.0,
+                          "gmail_gb": 0.0, "drive_gb": 0.0, "photos_gb": 0.0},
+    "spam_trash":        {"spam_count": 0, "spam_size_mb": 0.0,
+                          "trash_count": 0, "trash_size_mb": 0.0},
+    "large_attachments": [],
+    "old_promotions":    {"count": 0, "estimated_size_mb": 0.0, "sample_senders": []},
+    "bulk_senders":      [],
+}
+
+
+def _run_step(name: str, fn, *args, **kwargs):
+    """Run fn(*args, **kwargs) with a per-step timeout. Returns default on timeout/error."""
+    import threading
+    result_box = [_STEP_DEFAULTS[name]]
+    exc_box    = [None]
+
+    def target():
+        try:
+            result_box[0] = fn(*args, **kwargs)
+        except Exception as e:
+            exc_box[0] = e
+
+    t = threading.Thread(target=target, daemon=True)
+    t.start()
+    t.join(timeout=_STEP_TIMEOUT[name])
+
+    if t.is_alive():
+        # Thread still running — timed out; return default and move on
+        return _STEP_DEFAULTS[name], True   # (value, timed_out)
+    if exc_box[0]:
+        return _STEP_DEFAULTS[name], False  # errored, not timed out
+    return result_box[0], False
+
+
 def run_full_scan(user_id: str, credentials) -> dict:
     """
-    Runs all scan functions, assembles a full breakdown dict,
-    persists to database, and caches for 60 minutes.
-    Returns the breakdown dict.
+    Runs scan steps in priority order. Each step has a hard timeout.
+    Skipped/timed-out steps return safe defaults so the dashboard
+    always has something to render.
+    Steps: quota → spam_trash → large_attachments → old_promotions → bulk_senders
     """
-    quota          = get_storage_quota(credentials)
-    large_attach   = get_large_attachments(credentials, threshold_mb=5, max_results=50)
-    bulk_senders   = get_bulk_senders(credentials, min_count=50)
-    spam_trash     = get_spam_and_trash_size(credentials)
-    old_promos     = get_old_promotions(credentials, days=90)
+    quota,      _  = _run_step("quota",            get_storage_quota,      credentials)
+    spam_trash, _  = _run_step("spam_trash",        get_spam_and_trash_size, credentials)
+    large_attach, _ = _run_step("large_attachments", get_large_attachments,  credentials,
+                                threshold_mb=5, max_results=50)
+    old_promos, _  = _run_step("old_promotions",    get_old_promotions,     credentials, days=90)
+    bulk_senders, _ = _run_step("bulk_senders",     get_bulk_senders,       credentials, min_count=3)
 
     breakdown = {
-        "quota":            quota,
+        "quota":             quota,
+        "spam_trash":        spam_trash,
         "large_attachments": large_attach,
-        "bulk_senders":     bulk_senders,
-        "spam_trash":       spam_trash,
-        "old_promotions":   old_promos,
+        "old_promotions":    old_promos,
+        "bulk_senders":      bulk_senders,
     }
 
     save_scan_result(
