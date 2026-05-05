@@ -7,7 +7,7 @@ load_dotenv()
 
 from auth import get_auth_url, handle_callback, get_credentials
 from signal import load_profile, save_profile, update_field
-from database import get_user, create_user, update_user, get_tips, get_latest_scan, get_deleted_items
+from database import get_user, create_user, update_user, get_tips, get_latest_scan, get_deleted_items, link_telegram
 from tips import generate_tips, _detect_persona
 from gmail import run_full_scan, empty_trash, empty_spam, move_to_trash_bulk, fetch_messages_for_preview
 from cache import get_cached_scan, invalidate_cache
@@ -341,6 +341,43 @@ def action_history():
         items=items,
         total_freed_mb=total_freed_mb,
     )
+
+
+@app.route("/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    # Import here to avoid circular import at module load
+    from telegram_bot import dispatch
+    import hmac, hashlib
+
+    # Validate the request is from Telegram (token in URL as secret)
+    expected = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    token_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    webhook_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+    if webhook_secret and token_header != webhook_secret:
+        return "", 403
+
+    update = request.get_json(silent=True)
+    if update:
+        try:
+            dispatch(update)
+        except Exception:
+            pass  # never return 500 to Telegram — it will retry
+    return "", 200
+
+
+@app.route("/auth/link-telegram")
+def auth_link_telegram():
+    """
+    Called from the dashboard with ?tg_id=<chat_id> to link a Telegram account.
+    The user copies a link from the bot or scans a QR code.
+    """
+    if not session.get("authenticated"):
+        return redirect(url_for("auth_login"))
+
+    tg_id = request.args.get("tg_id", "").strip()
+    if tg_id and tg_id.isdigit():
+        link_telegram(session["user_id"], tg_id)
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/health")

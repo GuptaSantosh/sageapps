@@ -19,12 +19,13 @@ def init_db():
     with _conn() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS users (
-                user_id     TEXT PRIMARY KEY,
-                email       TEXT,
-                created_at  TIMESTAMP,
-                last_scan   TIMESTAMP,
-                persona     TEXT,
-                onboarding_done BOOLEAN DEFAULT 0
+                user_id         TEXT PRIMARY KEY,
+                email           TEXT,
+                created_at      TIMESTAMP,
+                last_scan       TIMESTAMP,
+                persona         TEXT,
+                onboarding_done BOOLEAN DEFAULT 0,
+                telegram_chat_id TEXT
             );
 
             CREATE TABLE IF NOT EXISTS scan_results (
@@ -210,5 +211,47 @@ def get_deleted_items(user_id: str, days: int = 30) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+# ── Telegram linking ───────────────────────────────────────────────────────────
+
+def link_telegram(user_id: str, telegram_chat_id: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET telegram_chat_id = ? WHERE user_id = ?",
+            (str(telegram_chat_id), user_id),
+        )
+
+
+def get_user_by_telegram_id(telegram_chat_id: str) -> dict | None:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM users WHERE telegram_chat_id = ?",
+            (str(telegram_chat_id),),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def get_all_active_users() -> list[dict]:
+    """Return all users with onboarding complete (for cron scans)."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM users WHERE onboarding_done = 1"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── Schema migration (safe, idempotent) ────────────────────────────────────────
+
+def _migrate():
+    """Add columns introduced after initial schema without breaking existing DBs."""
+    with _conn() as conn:
+        existing = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(users)").fetchall()
+        }
+        if "telegram_chat_id" not in existing:
+            conn.execute("ALTER TABLE users ADD COLUMN telegram_chat_id TEXT")
+
+
 # ── Init on import ─────────────────────────────────────────────────────────────
 init_db()
+_migrate()
