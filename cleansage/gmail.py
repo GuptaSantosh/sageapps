@@ -1,5 +1,4 @@
 import re
-import time
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -127,15 +126,25 @@ def get_storage_quota(credentials) -> dict:
 # 2. Large attachments
 # ---------------------------------------------------------------------------
 
-def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int = 50) -> list:
+def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int = 20) -> list:
     """
-    Returns emails with attachments larger than threshold_mb, newest first.
-    Each item: {message_id, sender, subject, date, size_mb, attachment_names}
+    Single messages.list call (maxResults=20), then one metadata fetch per result.
+    Returns: [{message_id, sender, subject, date, size_mb, attachment_names}]
     """
     service = _gmail_service(credentials)
     query = f"has:attachment larger:{threshold_mb}m"
 
-    stubs = _list_messages_all(service, query, max_results)
+    try:
+        resp = service.users().messages().list(
+            userId="me",
+            q=query,
+            maxResults=max_results,
+            fields="messages(id)",
+        ).execute()
+    except HttpError:
+        return []
+
+    stubs = resp.get("messages", [])
     if not stubs:
         return []
 
@@ -146,28 +155,20 @@ def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int =
                 userId="me",
                 id=stub["id"],
                 format="metadata",
-                metadataHeaders=["From", "Subject", "Date"],
-                fields="id,internalDate,sizeEstimate,payload(headers,parts)",
+                metadataHeaders=["From", "Subject"],
+                fields="id,internalDate,sizeEstimate,payload/headers",
             ).execute()
         except HttpError:
             continue
 
         headers = msg.get("payload", {}).get("headers", [])
-        parts   = msg.get("payload", {}).get("parts", [])
-
-        attachment_names = [
-            p["filename"]
-            for p in parts
-            if p.get("filename") and p.get("body", {}).get("attachmentId")
-        ]
-
         results.append({
             "message_id":       msg["id"],
             "sender":           _get_header(headers, "From"),
             "subject":          _get_header(headers, "Subject"),
             "date":             _ts_to_date(msg.get("internalDate", "0")),
             "size_mb":          _bytes_to_mb(msg.get("sizeEstimate", 0)),
-            "attachment_names": attachment_names,
+            "attachment_names": [],
         })
 
     results.sort(key=lambda x: x["size_mb"], reverse=True)
@@ -178,63 +179,46 @@ def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int =
 # 3. Bulk senders
 # ---------------------------------------------------------------------------
 
-def get_bulk_senders(credentials, min_count: int = 3) -> list:
+def get_bulk_senders(credentials, min_count: int = 2) -> list:
     """
-    Searches category:promotions (100) and category:social (50).
-    Fetches only From header per message via format=metadata.
-    Hard 30s timeout — returns whatever was collected so far.
-    Returns top 10: [{sender, count, category}]
+    Single messages.list call for category:promotions (maxResults=20),
+    one metadata fetch per result. Returns top senders by count.
+    Returns: [{sender, count, category}]
     """
-    service  = _gmail_service(credentials)
-    deadline = time.time() + 30
+    service     = _gmail_service(credentials)
     sender_data: dict[str, dict] = defaultdict(lambda: {"count": 0, "category": ""})
 
-    searches = [
-        ("category:promotions", 100),
-        ("category:social",      50),
-    ]
+    try:
+        resp = service.users().messages().list(
+            userId="me",
+            q="category:promotions",
+            maxResults=20,
+            fields="messages(id)",
+        ).execute()
+    except HttpError:
+        return []
 
-    for query, max_results in searches:
-        if time.time() > deadline:
-            break
-
-        # Single list call — returns IDs only (Gmail API limitation)
+    stubs = resp.get("messages", [])
+    for stub in stubs:
         try:
-            resp = service.users().messages().list(
+            msg = service.users().messages().get(
                 userId="me",
-                q=query,
-                maxResults=max_results,
-                fields="messages(id)",
+                id=stub["id"],
+                format="metadata",
+                metadataHeaders=["From"],
+                fields="payload/headers",
             ).execute()
         except HttpError:
             continue
 
-        stubs = resp.get("messages", [])
-        category = query.split(":")[1]
+        sender = _get_header(msg.get("payload", {}).get("headers", []), "From")
+        email  = _extract_sender_email(sender)
+        if not email:
+            continue
 
-        for stub in stubs:
-            if time.time() > deadline:
-                break
-
-            try:
-                msg = service.users().messages().get(
-                    userId="me",
-                    id=stub["id"],
-                    format="metadata",
-                    metadataHeaders=["From"],
-                    fields="payload/headers",
-                ).execute()
-            except HttpError:
-                continue
-
-            sender = _get_header(msg.get("payload", {}).get("headers", []), "From")
-            email  = _extract_sender_email(sender)
-            if not email:
-                continue
-
-            sender_data[email]["count"] += 1
-            if not sender_data[email]["category"]:
-                sender_data[email]["category"] = category
+        sender_data[email]["count"] += 1
+        if not sender_data[email]["category"]:
+            sender_data[email]["category"] = "promotions"
 
     results = [
         {"sender": s, "count": d["count"], "category": d["category"]}
@@ -356,71 +340,38 @@ def get_old_promotions(credentials, days: int = 90) -> dict:
 # 6. Full scan
 # ---------------------------------------------------------------------------
 
-# Per-step time budgets (seconds). Steps exceeding their budget are skipped.
-_STEP_TIMEOUT = {
-    "quota":            10,
-    "spam_trash":       15,
-    "large_attachments": 30,
-    "old_promotions":   30,
-    "bulk_senders":     30,
-}
-
-# Safe defaults returned when a step is skipped
-_STEP_DEFAULTS = {
-    "quota":             {"total_gb": 15.0, "used_gb": 0.0, "percent_used": 0.0,
-                          "gmail_gb": 0.0, "drive_gb": 0.0, "photos_gb": 0.0},
-    "spam_trash":        {"spam_count": 0, "spam_size_mb": 0.0,
-                          "trash_count": 0, "trash_size_mb": 0.0},
-    "large_attachments": [],
-    "old_promotions":    {"count": 0, "estimated_size_mb": 0.0, "sample_senders": []},
-    "bulk_senders":      [],
-}
-
-
-def _run_step(name: str, fn, *args, **kwargs):
-    """Run fn(*args, **kwargs) with a per-step timeout. Returns default on timeout/error."""
-    import threading
-    result_box = [_STEP_DEFAULTS[name]]
-    exc_box    = [None]
-
-    def target():
-        try:
-            result_box[0] = fn(*args, **kwargs)
-        except Exception as e:
-            exc_box[0] = e
-
-    t = threading.Thread(target=target, daemon=True)
-    t.start()
-    t.join(timeout=_STEP_TIMEOUT[name])
-
-    if t.is_alive():
-        # Thread still running — timed out; return default and move on
-        return _STEP_DEFAULTS[name], True   # (value, timed_out)
-    if exc_box[0]:
-        return _STEP_DEFAULTS[name], False  # errored, not timed out
-    return result_box[0], False
+def _safe_call(fn, default, *args, **kwargs):
+    """Call fn, return default on any exception."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception:
+        return default
 
 
 def run_full_scan(user_id: str, credentials) -> dict:
     """
-    Runs scan steps in priority order. Each step has a hard timeout.
-    Skipped/timed-out steps return safe defaults so the dashboard
-    always has something to render.
-    Steps: quota → spam_trash → large_attachments → old_promotions → bulk_senders
+    Sequential scan — no threads. Three fast API calls only.
+    large_attachments and bulk_senders excluded from auto-scan
+    (available on-demand from dashboard review links).
+    Completes in under 10 seconds.
     """
-    quota,      _  = _run_step("quota",            get_storage_quota,      credentials)
-    spam_trash, _  = _run_step("spam_trash",        get_spam_and_trash_size, credentials)
-    large_attach, _ = _run_step("large_attachments", get_large_attachments,  credentials,
-                                threshold_mb=5, max_results=50)
-    old_promos, _  = _run_step("old_promotions",    get_old_promotions,     credentials, days=90)
-    bulk_senders, _ = _run_step("bulk_senders",     get_bulk_senders,       credentials, min_count=3)
+    quota      = _safe_call(get_storage_quota,       {"total_gb": 15.0, "used_gb": 0.0,
+                                                       "percent_used": 0.0, "gmail_gb": 0.0,
+                                                       "drive_gb": 0.0, "photos_gb": 0.0},
+                            credentials)
+    spam_trash = _safe_call(get_spam_and_trash_size,  {"spam_count": 0, "spam_size_mb": 0.0,
+                                                        "trash_count": 0, "trash_size_mb": 0.0},
+                            credentials)
+    old_promos = _safe_call(get_old_promotions,        {"count": 0, "estimated_size_mb": 0.0,
+                                                        "sample_senders": []},
+                            credentials, days=90)
 
     breakdown = {
         "quota":             quota,
         "spam_trash":        spam_trash,
-        "large_attachments": large_attach,
         "old_promotions":    old_promos,
-        "bulk_senders":      bulk_senders,
+        "large_attachments": [],
+        "bulk_senders":      [],
     }
 
     save_scan_result(
