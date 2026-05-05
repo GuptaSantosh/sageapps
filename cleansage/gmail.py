@@ -1,4 +1,5 @@
 import re
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -177,67 +178,71 @@ def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int =
 # 3. Bulk senders
 # ---------------------------------------------------------------------------
 
-def get_bulk_senders(credentials, min_count: int = 50) -> list:
+def get_bulk_senders(credentials, min_count: int = 3) -> list:
     """
-    Fetches last 500 message metadata, groups by sender domain,
-    returns senders above min_count threshold sorted by count desc.
-    Each item: {sender, count, oldest_date, newest_date, estimated_size_mb}
+    Searches category:promotions (100) and category:social (50).
+    Fetches only From header per message via format=metadata.
+    Hard 30s timeout — returns whatever was collected so far.
+    Returns top 10: [{sender, count, category}]
     """
-    service = _gmail_service(credentials)
-    stubs = _list_messages_all(service, "in:anywhere", 500)
-    if not stubs:
-        return []
+    service  = _gmail_service(credentials)
+    deadline = time.time() + 30
+    sender_data: dict[str, dict] = defaultdict(lambda: {"count": 0, "category": ""})
 
-    # Batch-fetch metadata (sender + date + size) in groups of 100
-    domain_data: dict[str, dict] = defaultdict(lambda: {
-        "count": 0,
-        "dates": [],
-        "total_size": 0,
-        "display_sender": "",
-    })
+    searches = [
+        ("category:promotions", 100),
+        ("category:social",      50),
+    ]
 
-    for i in range(0, len(stubs), 100):
-        batch_ids = [s["id"] for s in stubs[i:i + 100]]
-        for msg_id in batch_ids:
+    for query, max_results in searches:
+        if time.time() > deadline:
+            break
+
+        # Single list call — returns IDs only (Gmail API limitation)
+        try:
+            resp = service.users().messages().list(
+                userId="me",
+                q=query,
+                maxResults=max_results,
+                fields="messages(id)",
+            ).execute()
+        except HttpError:
+            continue
+
+        stubs = resp.get("messages", [])
+        category = query.split(":")[1]
+
+        for stub in stubs:
+            if time.time() > deadline:
+                break
+
             try:
                 msg = service.users().messages().get(
                     userId="me",
-                    id=msg_id,
+                    id=stub["id"],
                     format="metadata",
                     metadataHeaders=["From"],
-                    fields="id,internalDate,sizeEstimate,payload/headers",
+                    fields="payload/headers",
                 ).execute()
             except HttpError:
                 continue
 
             sender = _get_header(msg.get("payload", {}).get("headers", []), "From")
-            domain = _extract_sender_domain(sender)
-            date   = _ts_to_date(msg.get("internalDate", "0"))
-            size   = msg.get("sizeEstimate", 0)
+            email  = _extract_sender_email(sender)
+            if not email:
+                continue
 
-            d = domain_data[domain]
-            d["count"] += 1
-            d["total_size"] += size
-            if date:
-                d["dates"].append(date)
-            if not d["display_sender"]:
-                d["display_sender"] = _extract_sender_email(sender)
+            sender_data[email]["count"] += 1
+            if not sender_data[email]["category"]:
+                sender_data[email]["category"] = category
 
-    results = []
-    for domain, d in domain_data.items():
-        if d["count"] < min_count:
-            continue
-        dates = sorted(d["dates"])
-        results.append({
-            "sender":             d["display_sender"] or domain,
-            "count":              d["count"],
-            "oldest_date":        dates[0] if dates else "",
-            "newest_date":        dates[-1] if dates else "",
-            "estimated_size_mb":  _bytes_to_mb(d["total_size"]),
-        })
-
+    results = [
+        {"sender": s, "count": d["count"], "category": d["category"]}
+        for s, d in sender_data.items()
+        if d["count"] >= min_count
+    ]
     results.sort(key=lambda x: x["count"], reverse=True)
-    return results
+    return results[:10]
 
 
 # ---------------------------------------------------------------------------
