@@ -170,24 +170,33 @@ def dashboard():
     if not creds:
         return redirect(url_for("auth_login"))
 
-    # Use cache if fresh, else run full scan
+    # Render immediately — scan data loaded async via /api/scan
+    tips = get_tips(user_id, status="active")
+    return render_template("dashboard.html", tips=tips)
+
+
+@app.route("/api/scan")
+def api_scan():
+    if not session.get("authenticated"):
+        return jsonify({"error": "not authenticated"}), 401
+
+    user_id = session["user_id"]
+    creds, err = _require_creds(user_id)
+    if err:
+        return err
+
+    force = request.args.get("force") == "true"
+    if force:
+        invalidate_cache(user_id)
+
     scan = get_cached_scan(user_id)
     if not scan:
         scan = run_full_scan(user_id, creds)
 
-    # Last scanned time
     latest = get_latest_scan(user_id)
     scanned_ago = _time_ago(latest["scanned_at"]) if latest else "never"
 
-    # Pending tips (top 2 active)
-    tips = get_tips(user_id, status="active")
-
-    return render_template(
-        "dashboard.html",
-        scan=scan,
-        scanned_ago=scanned_ago,
-        tips=tips,
-    )
+    return jsonify({"scan": scan, "scanned_ago": scanned_ago})
 
 
 @app.route("/action/empty-trash", methods=["POST"])
@@ -228,16 +237,9 @@ def action_empty_spam():
 
 @app.route("/action/rescan", methods=["POST"])
 def action_rescan():
+    # Kept for backwards compatibility; dashboard now uses /api/scan?force=true
     if not session.get("authenticated"):
         return redirect(url_for("auth_login"))
-
-    user_id = session["user_id"]
-    creds, err = _require_creds(user_id)
-    if err:
-        return redirect(url_for("auth_login"))
-
-    invalidate_cache(user_id)
-    run_full_scan(user_id, creds)
     return redirect(url_for("dashboard"))
 
 

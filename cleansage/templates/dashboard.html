@@ -5,190 +5,96 @@
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-8 space-y-8">
 
-  <!-- ── Section 1: Storage Health Bar ─────────────────────────────────── -->
-  <section>
-    <div class="flex items-end justify-between mb-2">
-      <h1 class="text-xl font-semibold">Storage Health</h1>
-      <span class="text-sm text-gray-500 dark:text-gray-400">
-        {{ scan.quota.used_gb }} GB of {{ scan.quota.total_gb }} GB used
-      </span>
-    </div>
+  <!-- ── Loading state ──────────────────────────────────────────────────── -->
+  <div id="scan-loading" class="space-y-8">
+    <section>
+      <div class="flex items-end justify-between mb-2">
+        <h1 class="text-xl font-semibold">Storage Health</h1>
+        <span class="text-sm text-gray-400 animate-pulse">Scanning your storage…</span>
+      </div>
+      <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3">
+        <div class="bg-gray-200 dark:bg-gray-700 h-3 rounded-full animate-pulse w-3/4"></div>
+      </div>
+    </section>
+    <section class="space-y-3">
+      <div class="h-16 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse"></div>
+      <div class="h-16 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse"></div>
+      <div class="h-16 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse"></div>
+    </section>
+  </div>
 
-    {% set pct = scan.quota.percent_used %}
-    {% if pct >= 80 %}
-      {% set bar_color = "bg-red-500" %}
-      {% set badge = "text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400" %}
-      {% set label = "Critical" %}
-    {% elif pct >= 60 %}
-      {% set bar_color = "bg-yellow-400" %}
-      {% set badge = "text-yellow-700 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-400" %}
-      {% set label = "High" %}
-    {% else %}
-      {% set bar_color = "bg-sage-500" %}
-      {% set badge = "text-sage-700 bg-sage-50 dark:bg-sage-950 dark:text-sage-400" %}
-      {% set label = "Healthy" %}
+  <!-- ── Error state ────────────────────────────────────────────────────── -->
+  <div id="scan-error" class="hidden">
+    <div class="border border-red-200 dark:border-red-800 rounded-xl px-5 py-4 bg-red-50 dark:bg-red-950 text-sm text-red-700 dark:text-red-400">
+      Could not load scan results. <button onclick="loadScan()" class="underline font-medium">Retry</button>
+    </div>
+  </div>
+
+  <!-- ── Scan results (hidden until data arrives) ───────────────────────── -->
+  <div id="scan-results" class="hidden space-y-8">
+
+    <!-- Section 1: Storage Health Bar -->
+    <section>
+      <div class="flex items-end justify-between mb-2">
+        <h1 class="text-xl font-semibold">Storage Health</h1>
+        <span id="quota-label" class="text-sm text-gray-500 dark:text-gray-400"></span>
+      </div>
+      <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3">
+        <div id="quota-bar" class="h-3 rounded-full transition-all duration-700" style="width:0%"></div>
+      </div>
+      <div class="flex justify-between items-center mt-1.5">
+        <span id="quota-badge" class="text-xs px-2 py-0.5 rounded-full font-medium"></span>
+        <span id="quota-total" class="text-xs text-gray-400"></span>
+      </div>
+    </section>
+
+    <!-- Section 2: Quick Wins -->
+    <section id="quick-wins-section" class="hidden">
+      <h2 class="text-base font-semibold mb-3 text-gray-700 dark:text-gray-300">Quick Wins</h2>
+      <div id="quick-wins-grid" class="grid sm:grid-cols-2 gap-3"></div>
+    </section>
+
+    <!-- Section 3: Storage Breakdown -->
+    <section>
+      <h2 class="text-base font-semibold mb-3 text-gray-700 dark:text-gray-300">Storage Breakdown</h2>
+      <div id="breakdown-list" class="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-800"></div>
+    </section>
+
+    <!-- Section 4: Smart Tips (server-rendered) -->
+    {% if tips %}
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold text-gray-700 dark:text-gray-300">Smart Tips</h2>
+        <a href="/tips" class="text-xs text-sage-600 dark:text-sage-500 hover:underline">See all</a>
+      </div>
+      <div class="space-y-3">
+        {% for t in tips[:2] %}
+        <div class="border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-900">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-sm font-medium">{{ t.tip.title }}</p>
+              <p class="text-xs text-gray-500 mt-0.5">{{ t.tip.savings_estimate }} · {{ t.tip.effort }}</p>
+            </div>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-sage-50 dark:bg-sage-950 text-sage-700 dark:text-sage-400 whitespace-nowrap font-medium">
+              {{ t.tip.category }}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
     {% endif %}
 
-    <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3">
-      <div class="{{ bar_color }} h-3 rounded-full transition-all duration-500"
-           style="width: {{ pct }}%"></div>
-    </div>
-    <div class="flex justify-between items-center mt-1.5">
-      <span class="text-xs px-2 py-0.5 rounded-full font-medium {{ badge }}">{{ label }} · {{ pct }}%</span>
-      <span class="text-xs text-gray-400">{{ scan.quota.total_gb }} GB total</span>
-    </div>
-  </section>
-
-  <!-- ── Section 2: Quick Wins ──────────────────────────────────────────── -->
-  {% set st = scan.spam_trash %}
-  {% if st.trash_size_mb > 0 or st.spam_size_mb > 0 %}
-  <section>
-    <h2 class="text-base font-semibold mb-3 text-gray-700 dark:text-gray-300">Quick Wins</h2>
-    <div class="grid sm:grid-cols-2 gap-3">
-
-      {% if st.trash_size_mb > 0 %}
-      <div class="flex items-center justify-between border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-900">
-        <div>
-          <p class="font-medium text-sm">🗑️ Empty Trash</p>
-          <p class="text-xs text-gray-400 mt-0.5">{{ st.trash_count | commify }} emails · {{ st.trash_size_mb | round(1) }} MB</p>
-        </div>
-        <button onclick="confirmAction('trash', {{ st.trash_size_mb }})"
-                class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors whitespace-nowrap ml-4">
-          Free it now
-        </button>
-      </div>
-      {% endif %}
-
-      {% if st.spam_size_mb > 0 %}
-      <div class="flex items-center justify-between border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-900">
-        <div>
-          <p class="font-medium text-sm">🚫 Empty Spam</p>
-          <p class="text-xs text-gray-400 mt-0.5">{{ st.spam_count | commify }} emails · {{ st.spam_size_mb | round(1) }} MB</p>
-        </div>
-        <button onclick="confirmAction('spam', {{ st.spam_size_mb }})"
-                class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors whitespace-nowrap ml-4">
-          Free it now
-        </button>
-      </div>
-      {% endif %}
-
-    </div>
-  </section>
-  {% endif %}
-
-  <!-- ── Section 3: Storage Breakdown ──────────────────────────────────── -->
-  <section>
-    <h2 class="text-base font-semibold mb-3 text-gray-700 dark:text-gray-300">Storage Breakdown</h2>
-
-    <div class="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
-
-      <!-- Gmail -->
-      <div class="px-4 py-3 bg-white dark:bg-gray-900">
-        <div class="flex items-center justify-between">
-          <span class="font-medium text-sm">📧 Gmail</span>
-          <span class="text-sm text-gray-500">{{ scan.quota.gmail_gb }} GB</span>
-        </div>
-
-        <div class="mt-2 ml-4 space-y-2">
-          {% set la = scan.large_attachments %}
-          {% if la %}
-          {% set la_mb = la | sum(attribute='size_mb') %}
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-gray-500">└── Large attachments ({{ la | length }})</span>
-            <div class="flex items-center gap-3">
-              <span class="text-gray-400 text-xs">{{ (la_mb / 1024) | round(2) }} GB</span>
-              <a href="/review/large-attachments"
-                 class="text-xs font-medium text-sage-600 dark:text-sage-500 hover:underline">Review</a>
-            </div>
-          </div>
-          {% endif %}
-
-          {% set bs = scan.bulk_senders %}
-          {% if bs %}
-          {% set bs_mb = bs | sum(attribute='estimated_size_mb') %}
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-gray-500">└── Bulk sender mail ({{ bs | length }} senders)</span>
-            <div class="flex items-center gap-3">
-              <span class="text-gray-400 text-xs">{{ (bs_mb / 1024) | round(2) }} GB</span>
-              <a href="/review/bulk-senders"
-                 class="text-xs font-medium text-sage-600 dark:text-sage-500 hover:underline">Review</a>
-            </div>
-          </div>
-          {% endif %}
-
-          {% set op = scan.old_promotions %}
-          {% if op.count > 0 %}
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-gray-500">└── Old promotions ({{ op.count | commify }})</span>
-            <div class="flex items-center gap-3">
-              <span class="text-gray-400 text-xs">{{ (op.estimated_size_mb / 1024) | round(2) }} GB</span>
-              <a href="/review/old-promotions"
-                 class="text-xs font-medium text-sage-600 dark:text-sage-500 hover:underline">Review</a>
-            </div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-
-      <!-- Drive -->
-      <div class="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900">
-        <span class="font-medium text-sm">💾 Google Drive</span>
-        <div class="flex items-center gap-4">
-          <span class="text-sm text-gray-500">{{ scan.quota.drive_gb }} GB</span>
-          <a href="/review/drive"
-             class="text-xs font-medium text-sage-600 dark:text-sage-500 hover:underline">Review</a>
-        </div>
-      </div>
-
-      <!-- Photos -->
-      <div class="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900">
-        <span class="font-medium text-sm">📷 Google Photos</span>
-        <div class="flex items-center gap-4">
-          <span class="text-sm text-gray-500">{{ scan.quota.photos_gb }} GB</span>
-          <a href="/review/photos"
-             class="text-xs font-medium text-sage-600 dark:text-sage-500 hover:underline">Review</a>
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- ── Section 4: Smart Tips strip ───────────────────────────────────── -->
-  {% if tips %}
-  <section>
-    <div class="flex items-center justify-between mb-3">
-      <h2 class="text-base font-semibold text-gray-700 dark:text-gray-300">Smart Tips</h2>
-      <a href="/tips" class="text-xs text-sage-600 dark:text-sage-500 hover:underline">See all</a>
-    </div>
-    <div class="space-y-3">
-      {% for t in tips[:2] %}
-      <div class="border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-900">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <p class="text-sm font-medium">{{ t.tip.title }}</p>
-            <p class="text-xs text-gray-500 mt-0.5">{{ t.tip.savings_estimate }} · {{ t.tip.effort }}</p>
-          </div>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-sage-50 dark:bg-sage-950 text-sage-700 dark:text-sage-400 whitespace-nowrap font-medium">
-            {{ t.tip.category }}
-          </span>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
-
-  <!-- ── Section 5: Last scanned ───────────────────────────────────────── -->
-  <section class="flex items-center justify-between text-sm text-gray-400 pb-2">
-    <span>Last scanned: {{ scanned_ago }}</span>
-    <form method="POST" action="/action/rescan">
-      <button type="submit"
+    <!-- Section 5: Last scanned -->
+    <section class="flex items-center justify-between text-sm text-gray-400 pb-2">
+      <span>Last scanned: <span id="scanned-ago"></span></span>
+      <button onclick="loadScan(true)"
               class="text-sage-600 dark:text-sage-500 hover:underline font-medium text-sm">
         Rescan
       </button>
-    </form>
-  </section>
+    </section>
 
+  </div>
 </div>
 
 <!-- ── Confirmation Modal ─────────────────────────────────────────────── -->
@@ -212,23 +118,191 @@
 </div>
 
 <script>
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function fmt(n) { return Number(n).toLocaleString(); }
+  function el(id) { return document.getElementById(id); }
+
+  function card(cls, html) {
+    return `<div class="${cls}">${html}</div>`;
+  }
+
+  // ── Scan loader ──────────────────────────────────────────────────────────
+
+  async function loadScan(force = false) {
+    el('scan-results').classList.add('hidden');
+    el('scan-error').classList.add('hidden');
+    el('scan-loading').classList.remove('hidden');
+
+    try {
+      const url = force ? '/api/scan?force=true' : '/api/scan';
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(resp.status);
+      const { scan, scanned_ago } = await resp.json();
+      renderScan(scan, scanned_ago);
+    } catch {
+      el('scan-loading').classList.add('hidden');
+      el('scan-error').classList.remove('hidden');
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+
+  function renderScan(scan, scannedAgo) {
+    const q = scan.quota || {};
+    renderQuota(q);
+    renderQuickWins(scan.spam_trash || {});
+    renderBreakdown(q, scan);
+    el('scanned-ago').textContent = scannedAgo;
+
+    el('scan-loading').classList.add('hidden');
+    el('scan-results').classList.remove('hidden');
+  }
+
+  function renderQuota(q) {
+    const used  = q.used_gb  || 0;
+    const total = q.total_gb || 15;
+    const pct   = q.percent_used || 0;
+
+    el('quota-label').textContent = `${used} GB of ${total} GB used`;
+    el('quota-total').textContent = `${total} GB total`;
+
+    const bar   = el('quota-bar');
+    const badge = el('quota-badge');
+    bar.style.width = pct + '%';
+
+    if (pct >= 80) {
+      bar.className   = 'h-3 rounded-full transition-all duration-700 bg-red-500';
+      badge.className = 'text-xs px-2 py-0.5 rounded-full font-medium text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400';
+      badge.textContent = `Critical · ${pct}%`;
+    } else if (pct >= 60) {
+      bar.className   = 'h-3 rounded-full transition-all duration-700 bg-yellow-400';
+      badge.className = 'text-xs px-2 py-0.5 rounded-full font-medium text-yellow-700 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-400';
+      badge.textContent = `High · ${pct}%`;
+    } else {
+      bar.className   = 'h-3 rounded-full transition-all duration-700 bg-sage-600';
+      badge.className = 'text-xs px-2 py-0.5 rounded-full font-medium text-sage-700 bg-sage-50 dark:bg-sage-950 dark:text-sage-400';
+      badge.textContent = `Healthy · ${pct}%`;
+    }
+  }
+
+  function renderQuickWins(st) {
+    const grid    = el('quick-wins-grid');
+    const section = el('quick-wins-section');
+    grid.innerHTML = '';
+    let shown = 0;
+
+    if (st.trash_size_mb > 0) {
+      shown++;
+      grid.innerHTML += `
+        <div class="flex items-center justify-between border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-900">
+          <div>
+            <p class="font-medium text-sm">🗑️ Empty Trash</p>
+            <p class="text-xs text-gray-400 mt-0.5">${fmt(st.trash_count)} emails · ${st.trash_size_mb.toFixed(1)} MB</p>
+          </div>
+          <button onclick="confirmAction('trash', ${st.trash_size_mb})"
+                  class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors whitespace-nowrap ml-4">
+            Free it now
+          </button>
+        </div>`;
+    }
+    if (st.spam_size_mb > 0) {
+      shown++;
+      grid.innerHTML += `
+        <div class="flex items-center justify-between border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-900">
+          <div>
+            <p class="font-medium text-sm">🚫 Empty Spam</p>
+            <p class="text-xs text-gray-400 mt-0.5">${fmt(st.spam_count)} emails · ${st.spam_size_mb.toFixed(1)} MB</p>
+          </div>
+          <button onclick="confirmAction('spam', ${st.spam_size_mb})"
+                  class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors whitespace-nowrap ml-4">
+            Free it now
+          </button>
+        </div>`;
+    }
+    section.classList.toggle('hidden', shown === 0);
+  }
+
+  function renderBreakdown(q, scan) {
+    const la  = scan.large_attachments || [];
+    const bs  = scan.bulk_senders || [];
+    const op  = scan.old_promotions || {};
+    const ROW = 'flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900';
+    const LINK = 'text-xs font-medium text-sage-600 dark:text-sage-500 hover:underline';
+    const SIZE = 'text-sm text-gray-500';
+
+    let html = `
+      <div class="px-4 py-3 bg-white dark:bg-gray-900">
+        <div class="flex items-center justify-between">
+          <span class="font-medium text-sm">📧 Gmail</span>
+          <span class="${SIZE}">${q.gmail_gb || 0} GB</span>
+        </div>
+        <div class="mt-2 ml-4 space-y-2">`;
+
+    if (la.length) {
+      const laMb = la.reduce((s, i) => s + i.size_mb, 0);
+      html += `<div class="flex items-center justify-between text-sm">
+        <span class="text-gray-500">└── Large attachments (${la.length})</span>
+        <div class="flex items-center gap-3">
+          <span class="text-gray-400 text-xs">${(laMb/1024).toFixed(2)} GB</span>
+          <a href="/review/large-attachments" class="${LINK}">Review</a>
+        </div></div>`;
+    }
+    if (bs.length) {
+      const bsMb = bs.reduce((s, i) => s + i.estimated_size_mb, 0);
+      html += `<div class="flex items-center justify-between text-sm">
+        <span class="text-gray-500">└── Bulk sender mail (${bs.length} senders)</span>
+        <div class="flex items-center gap-3">
+          <span class="text-gray-400 text-xs">${(bsMb/1024).toFixed(2)} GB</span>
+          <a href="/review/bulk-senders" class="${LINK}">Review</a>
+        </div></div>`;
+    }
+    if (op.count > 0) {
+      html += `<div class="flex items-center justify-between text-sm">
+        <span class="text-gray-500">└── Old promotions (${fmt(op.count)})</span>
+        <div class="flex items-center gap-3">
+          <span class="text-gray-400 text-xs">${((op.estimated_size_mb||0)/1024).toFixed(2)} GB</span>
+          <a href="/review/old-promotions" class="${LINK}">Review</a>
+        </div></div>`;
+    }
+
+    html += `</div></div>
+      <div class="${ROW}">
+        <span class="font-medium text-sm">💾 Google Drive</span>
+        <div class="flex items-center gap-4">
+          <span class="${SIZE}">${q.drive_gb || 0} GB</span>
+          <a href="/review/drive" class="${LINK}">Review</a>
+        </div>
+      </div>
+      <div class="${ROW}">
+        <span class="font-medium text-sm">📷 Google Photos</span>
+        <div class="flex items-center gap-4">
+          <span class="${SIZE}">${q.photos_gb || 0} GB</span>
+          <a href="/review/photos" class="${LINK}">Review</a>
+        </div>
+      </div>`;
+
+    el('breakdown-list').innerHTML = html;
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+
   let pendingAction = null;
 
   function confirmAction(type, sizeMb) {
     pendingAction = type;
     const label = type === 'trash' ? 'Trash' : 'Spam';
-    document.getElementById('modal-title').textContent = `Empty ${label}?`;
-    document.getElementById('modal-body').textContent =
-      `This will permanently delete all ${label.toLowerCase()} emails and free approximately ${sizeMb.toFixed(0)} MB.`;
-    document.getElementById('modal-overlay').classList.remove('hidden');
+    el('modal-title').textContent = `Empty ${label}?`;
+    el('modal-body').textContent =
+      `This will permanently delete all ${label.toLowerCase()} emails and free approximately ${Math.round(sizeMb)} MB.`;
+    el('modal-overlay').classList.remove('hidden');
   }
 
-  document.getElementById('modal-confirm').addEventListener('click', async () => {
+  el('modal-confirm').addEventListener('click', async () => {
     if (!pendingAction) return;
-    const btn = document.getElementById('modal-confirm');
+    const btn = el('modal-confirm');
     btn.textContent = 'Working…';
     btn.disabled = true;
-
     try {
       const resp = await fetch(`/action/empty-${pendingAction}`, {
         method: 'POST',
@@ -236,13 +310,8 @@
         body: JSON.stringify({ confirm: true }),
       });
       const data = await resp.json();
-      if (data.success) {
-        closeModal();
-        window.location.reload();
-      } else {
-        btn.textContent = 'Error — retry';
-        btn.disabled = false;
-      }
+      if (data.success) { closeModal(); loadScan(); }
+      else { btn.textContent = 'Error — retry'; btn.disabled = false; }
     } catch {
       btn.textContent = 'Error — retry';
       btn.disabled = false;
@@ -250,12 +319,14 @@
   });
 
   function closeModal(e) {
-    if (e && e.target !== document.getElementById('modal-overlay')) return;
-    document.getElementById('modal-overlay').classList.add('hidden');
+    if (e && e.target !== el('modal-overlay')) return;
+    el('modal-overlay').classList.add('hidden');
     pendingAction = null;
-    const btn = document.getElementById('modal-confirm');
-    btn.textContent = 'Yes, free the space';
-    btn.disabled = false;
+    el('modal-confirm').textContent = 'Yes, free the space';
+    el('modal-confirm').disabled = false;
   }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  loadScan();
 </script>
 {% endblock %}
