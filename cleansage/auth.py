@@ -1,5 +1,8 @@
 import os
 import json
+import secrets
+import hashlib
+import base64
 import requests
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -32,7 +35,25 @@ def _token_path(user_id: str) -> str:
     return os.path.join(DATA_DIR, f"{user_id}_tokens.json")
 
 
+def _state_path(state: str) -> str:
+    return os.path.join(DATA_DIR, f"oauth_state_{state}.json")
+
+
+def _pkce_pair() -> tuple[str, str]:
+    """Generate a PKCE code_verifier and its S256 code_challenge."""
+    verifier = secrets.token_urlsafe(96)
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    return verifier, challenge
+
+
 def get_auth_url(user_id: str) -> str:
+    verifier, challenge = _pkce_pair()
+
+    # Persist verifier so handle_callback can retrieve it
+    with open(_state_path(str(user_id)), "w") as f:
+        json.dump({"code_verifier": verifier}, f)
+
     flow = Flow.from_client_config(
         CLIENT_CONFIG,
         scopes=SCOPES,
@@ -43,19 +64,34 @@ def get_auth_url(user_id: str) -> str:
         include_granted_scopes="true",
         prompt="consent",
         state=str(user_id),
+        code_challenge=challenge,
+        code_challenge_method="S256",
     )
     return auth_url
 
 
 def handle_callback(code: str, state: str) -> str:
     """Exchange auth code for tokens, store them, return user_id (state)."""
+    # Retrieve and delete the PKCE verifier persisted during get_auth_url
+    state_file = _state_path(state)
+    code_verifier = None
+    if os.path.exists(state_file):
+        try:
+            with open(state_file) as f:
+                code_verifier = json.load(f).get("code_verifier")
+        finally:
+            os.remove(state_file)
+
     flow = Flow.from_client_config(
         CLIENT_CONFIG,
         scopes=SCOPES,
         redirect_uri=CLIENT_CONFIG["web"]["redirect_uris"][0],
         state=state,
     )
-    flow.fetch_token(code=code)
+    fetch_kwargs = {"code": code}
+    if code_verifier:
+        fetch_kwargs["code_verifier"] = code_verifier
+    flow.fetch_token(**fetch_kwargs)
     creds = flow.credentials
 
     token_data = {
