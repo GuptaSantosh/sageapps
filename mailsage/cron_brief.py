@@ -76,12 +76,6 @@ def send_auto_brief(user_id: str):
 
     evening = is_evening()
 
-    # Check cache — 60-min TTL prevents duplicate runs; morning/evening are 12h apart so always fresh
-    cached = get_cached_brief(user_id, 1)
-    if cached:
-        log.info(f"Skipping {user_id} — cached brief exists")
-        return
-
     try:
         profile  = get_signal_profile(user_id)
         emails   = fetch_emails(user_id, lookback_days=1)
