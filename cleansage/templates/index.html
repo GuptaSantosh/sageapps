@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}CleanSage — Free up your Google storage{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4">
+
+  <!-- Hero -->
+  <section class="py-20 text-center">
+    <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 dark:text-gray-50 mb-4 leading-tight">
+      Gmail crying for storage?<br />
+      <span class="text-sage-600 dark:text-sage-500">Fix it in 5 minutes.</span>
+    </h1>
+    <p class="text-lg text-gray-500 dark:text-gray-400 mb-8 max-w-xl mx-auto">
+      CleanSage shows you exactly what's eating your Google storage and hands you a one-click fix list — no app needed.
+    </p>
+    <a href="/auth/login"
+       class="inline-block bg-sage-600 hover:bg-sage-700 text-white font-semibold px-8 py-3 rounded-lg transition-colors shadow-sm text-base">
+      Connect Gmail — it's free
+    </a>
+    <p class="mt-3 text-xs text-gray-400">Read-only scan &middot; Nothing deleted without your approval</p>
+  </section>
+
+  <!-- Stat cards -->
+  <section class="grid sm:grid-cols-3 gap-4 pb-20">
+    <div class="border border-gray-100 dark:border-gray-800 rounded-xl p-6 text-center bg-gray-50 dark:bg-gray-900">
+      <p class="text-2xl font-bold text-sage-600 dark:text-sage-500 mb-1">4.2 GB</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Average storage freed in first session</p>
+    </div>
+    <div class="border border-gray-100 dark:border-gray-800 rounded-xl p-6 text-center bg-gray-50 dark:bg-gray-900">
+      <p class="text-2xl font-bold text-sage-600 dark:text-sage-500 mb-1">Zero</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Emails deleted without your confirmation</p>
+    </div>
+    <div class="border border-gray-100 dark:border-gray-800 rounded-xl p-6 text-center bg-gray-50 dark:bg-gray-900">
+      <p class="text-2xl font-bold text-sage-600 dark:text-sage-500 mb-1">Browser</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Works in your browser — no app to install</p>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

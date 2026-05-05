@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}CleanSage — Quick Setup{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-4 py-12">
+
+  <!-- Progress bar -->
+  <div class="mb-8">
+    <div class="flex justify-between text-xs text-gray-400 mb-1">
+      <span>Step <span id="step-label">1</span> of 6</span>
+      <span id="pct-label">17%</span>
+    </div>
+    <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5">
+      <div id="progress-bar"
+           class="bg-sage-600 h-1.5 rounded-full transition-all duration-300"
+           style="width: 17%"></div>
+    </div>
+  </div>
+
+  <!-- Question cards -->
+  <form id="onboard-form" method="POST" action="/onboard/complete">
+
+    <!-- Step 1 -->
+    <div class="step" data-step="1">
+      <h2 class="text-xl font-semibold mb-6">Is WhatsApp backing up to Google Drive?</h2>
+      <div class="space-y-3">
+        <label class="option-label">
+          <input type="radio" name="whatsapp_backup" value="yes" class="sr-only" />
+          <span class="option-box">Yes</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="whatsapp_backup" value="no" class="sr-only" />
+          <span class="option-box">No</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="whatsapp_backup" value="not_sure" class="sr-only" />
+          <span class="option-box">Not sure</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step hidden" data-step="2">
+      <h2 class="text-xl font-semibold mb-6">What quality is Google Photos set to?</h2>
+      <div class="space-y-3">
+        <label class="option-label">
+          <input type="radio" name="photos_quality" value="original" class="sr-only" />
+          <span class="option-box">Original quality</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="photos_quality" value="storage_saver" class="sr-only" />
+          <span class="option-box">Storage Saver (compressed)</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="photos_quality" value="not_sure" class="sr-only" />
+          <span class="option-box">Not sure</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step hidden" data-step="3">
+      <h2 class="text-xl font-semibold mb-6">Do WhatsApp group photos auto-save to your gallery?</h2>
+      <div class="space-y-3">
+        <label class="option-label">
+          <input type="radio" name="whatsapp_autosave" value="yes" class="sr-only" />
+          <span class="option-box">Yes</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="whatsapp_autosave" value="no" class="sr-only" />
+          <span class="option-box">No</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="whatsapp_autosave" value="disabled" class="sr-only" />
+          <span class="option-box">I disabled it</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step hidden" data-step="4">
+      <h2 class="text-xl font-semibold mb-6">How many emails hit your inbox daily?</h2>
+      <div class="space-y-3">
+        <label class="option-label">
+          <input type="radio" name="daily_email_volume" value="under_20" class="sr-only" />
+          <span class="option-box">Under 20</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="daily_email_volume" value="20_100" class="sr-only" />
+          <span class="option-box">20–100</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="daily_email_volume" value="100_plus" class="sr-only" />
+          <span class="option-box">100+</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step hidden" data-step="5">
+      <h2 class="text-xl font-semibold mb-6">When did you last clean your Gmail?</h2>
+      <div class="space-y-3">
+        <label class="option-label">
+          <input type="radio" name="last_cleaned" value="never" class="sr-only" />
+          <span class="option-box">Never</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="last_cleaned" value="over_year" class="sr-only" />
+          <span class="option-box">Over a year ago</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="last_cleaned" value="6_12_months" class="sr-only" />
+          <span class="option-box">6–12 months ago</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="last_cleaned" value="recently" class="sr-only" />
+          <span class="option-box">Recently</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="step hidden" data-step="6">
+      <h2 class="text-xl font-semibold mb-6">What's your biggest storage pain?</h2>
+      <div class="space-y-3">
+        <label class="option-label">
+          <input type="radio" name="primary_pain" value="gmail" class="sr-only" />
+          <span class="option-box">Gmail inbox is a mess</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="primary_pain" value="drive" class="sr-only" />
+          <span class="option-box">Google Drive is full of junk</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="primary_pain" value="photos" class="sr-only" />
+          <span class="option-box">Google Photos eating all space</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="primary_pain" value="all" class="sr-only" />
+          <span class="option-box">All of it</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Nav buttons -->
+    <div class="flex justify-between mt-8">
+      <button type="button" id="btn-back"
+              class="hidden px-5 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+        Back
+      </button>
+      <button type="button" id="btn-next"
+              class="ml-auto px-6 py-2 rounded-lg bg-sage-600 hover:bg-sage-700 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled>
+        Next
+      </button>
+      <button type="submit" id="btn-submit"
+              class="hidden ml-auto px-6 py-2 rounded-lg bg-sage-600 hover:bg-sage-700 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled>
+        See my tips
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<style>
+  .option-box {
+    display: block;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+    font-size: 0.95rem;
+  }
+  .dark .option-box {
+    border-color: #374151;
+  }
+  .option-label input:checked + .option-box {
+    border-color: #4f8a6e;
+    background-color: #f0faf5;
+    font-weight: 600;
+  }
+  .dark .option-label input:checked + .option-box {
+    border-color: #4f8a6e;
+    background-color: #1a2e24;
+  }
+  .option-box:hover {
+    border-color: #4f8a6e;
+  }
+</style>
+
+<script>
+  const TOTAL = 6;
+  let current = 1;
+
+  const steps    = () => document.querySelectorAll('.step');
+  const btnBack  = document.getElementById('btn-back');
+  const btnNext  = document.getElementById('btn-next');
+  const btnSubmit = document.getElementById('btn-submit');
+  const bar      = document.getElementById('progress-bar');
+  const stepLbl  = document.getElementById('step-label');
+  const pctLbl   = document.getElementById('pct-label');
+
+  function currentStep() {
+    return document.querySelector(`.step[data-step="${current}"]`);
+  }
+
+  function hasSelection() {
+    const inputs = currentStep().querySelectorAll('input[type=radio]');
+    return Array.from(inputs).some(i => i.checked);
+  }
+
+  function updateUI() {
+    // Show/hide steps
+    steps().forEach(s => s.classList.add('hidden'));
+    currentStep().classList.remove('hidden');
+
+    // Progress
+    const pct = Math.round((current / TOTAL) * 100);
+    bar.style.width = pct + '%';
+    stepLbl.textContent = current;
+    pctLbl.textContent = pct + '%';
+
+    // Back button
+    current > 1 ? btnBack.classList.remove('hidden') : btnBack.classList.add('hidden');
+
+    // Next vs Submit
+    if (current === TOTAL) {
+      btnNext.classList.add('hidden');
+      btnSubmit.classList.remove('hidden');
+      btnSubmit.disabled = !hasSelection();
+    } else {
+      btnNext.classList.remove('hidden');
+      btnSubmit.classList.add('hidden');
+      btnNext.disabled = !hasSelection();
+    }
+  }
+
+  // Enable Next/Submit on radio change
+  document.getElementById('onboard-form').addEventListener('change', () => {
+    if (current === TOTAL) {
+      btnSubmit.disabled = !hasSelection();
+    } else {
+      btnNext.disabled = !hasSelection();
+    }
+  });
+
+  btnNext.addEventListener('click', () => {
+    if (current < TOTAL && hasSelection()) {
+      current++;
+      updateUI();
+    }
+  });
+
+  btnBack.addEventListener('click', () => {
+    if (current > 1) {
+      current--;
+      updateUI();
+    }
+  });
+
+  updateUI();
+</script>
+{% endblock %}
