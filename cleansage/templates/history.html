@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}CleanSage — Delete History{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <a href="/dashboard" class="text-sm text-gray-400 hover:text-sage-600 dark:hover:text-sage-500 transition-colors">
+        ← Back to dashboard
+      </a>
+      <h1 class="text-xl font-semibold mt-3">Delete History</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Last 30 days</p>
+    </div>
+    {% if items %}
+    <div class="text-right">
+      <p class="text-2xl font-bold text-sage-600 dark:text-sage-500">{{ total_freed_mb }} MB</p>
+      <p class="text-xs text-gray-400">total freed</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not items %}
+  <div class="border border-gray-100 dark:border-gray-800 rounded-xl px-6 py-12 text-center bg-gray-50 dark:bg-gray-900">
+    <p class="text-gray-400 text-sm">No deletions in the last 30 days.</p>
+    <a href="/dashboard" class="mt-3 inline-block text-sm text-sage-600 dark:text-sage-500 hover:underline">
+      Go to dashboard →
+    </a>
+  </div>
+
+  {% else %}
+
+  <!-- Summary bar -->
+  <div class="grid grid-cols-3 gap-3 mb-6">
+    <div class="border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 text-center bg-gray-50 dark:bg-gray-900">
+      <p class="text-lg font-bold text-gray-800 dark:text-gray-200">{{ items | length }}</p>
+      <p class="text-xs text-gray-400">emails moved</p>
+    </div>
+    <div class="border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 text-center bg-gray-50 dark:bg-gray-900">
+      <p class="text-lg font-bold text-sage-600 dark:text-sage-500">{{ total_freed_mb }} MB</p>
+      <p class="text-xs text-gray-400">freed</p>
+    </div>
+    <div class="border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 text-center bg-gray-50 dark:bg-gray-900">
+      <p class="text-lg font-bold text-gray-800 dark:text-gray-200">
+        {{ items | selectattr('recoverable', 'equalto', 1) | list | length }}
+      </p>
+      <p class="text-xs text-gray-400">recoverable</p>
+    </div>
+  </div>
+
+  <!-- Item table -->
+  <div class="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+
+    <!-- Header -->
+    <div class="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide">
+      <span class="col-span-5">Subject</span>
+      <span class="col-span-3">Sender</span>
+      <span class="col-span-2 text-right">Size</span>
+      <span class="col-span-2 text-right">Date</span>
+    </div>
+
+    {% for item in items %}
+    <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-white dark:bg-gray-900 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+      <div class="col-span-5 min-w-0">
+        <p class="truncate text-gray-800 dark:text-gray-200">
+          {{ item.subject or '(no subject)' }}
+        </p>
+        <span class="inline-block mt-0.5 text-xs px-1.5 py-0.5 rounded
+          {% if item.recoverable %}
+            bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400
+          {% else %}
+            bg-gray-100 dark:bg-gray-800 text-gray-400
+          {% endif %}">
+          {% if item.recoverable %}Recoverable{% else %}Permanent{% endif %}
+        </span>
+      </div>
+      <div class="col-span-3 min-w-0">
+        <p class="truncate text-gray-500 dark:text-gray-400 text-xs">{{ item.sender }}</p>
+        <p class="text-xs text-gray-300 dark:text-gray-600 mt-0.5">{{ item.action_type | replace('_', ' ') }}</p>
+      </div>
+      <div class="col-span-2 text-right text-xs text-gray-400 self-center">
+        {{ item.size_mb }} MB
+      </div>
+      <div class="col-span-2 text-right text-xs text-gray-400 self-center">
+        {{ item.deleted_at[:10] if item.deleted_at else '' }}
+      </div>
+    </div>
+    {% endfor %}
+
+  </div>
+
+  <p class="mt-4 text-xs text-gray-400 text-center">
+    Recoverable emails are in your Gmail Trash and can be restored for 30 days.
+  </p>
+  {% endif %}
+
+</div>
+{% endblock %}

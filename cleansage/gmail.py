@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from database import save_scan_result
+from database import save_scan_result, log_deletion
 from cache import cache_scan, invalidate_cache
 
 # ---------------------------------------------------------------------------
@@ -385,7 +385,118 @@ def run_full_scan(user_id: str, credentials) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 7. Empty trash / spam (write operations)
+# 7. Move to trash in bulk (write, recoverable)
+# ---------------------------------------------------------------------------
+
+def move_to_trash_bulk(
+    user_id: str,
+    credentials,
+    message_items: list[dict],
+) -> dict:
+    """
+    Moves a list of messages to Trash (recoverable, NOT permanent delete).
+    message_items: list of {message_id, sender, subject, size_mb}
+    Returns {success_count, failed_count, freed_mb_estimate}.
+    """
+    service = _gmail_service(credentials)
+    success_count = 0
+    failed_count = 0
+    freed_mb = 0.0
+
+    # Process in batches of 100 (Gmail API rate limit courtesy)
+    for i in range(0, len(message_items), 100):
+        batch = message_items[i:i + 100]
+        for item in batch:
+            msg_id = item.get("message_id", "")
+            if not msg_id:
+                failed_count += 1
+                continue
+            try:
+                service.users().messages().trash(
+                    userId="me", id=msg_id
+                ).execute()
+                success_count += 1
+                freed_mb += item.get("size_mb", 0.0)
+                log_deletion(
+                    user_id=user_id,
+                    message_id=msg_id,
+                    sender=item.get("sender", ""),
+                    subject=item.get("subject", ""),
+                    size_mb=item.get("size_mb", 0.0),
+                    action_type="move_to_trash",
+                    recoverable=True,
+                )
+            except HttpError:
+                failed_count += 1
+
+    invalidate_cache(user_id)
+    return {
+        "success_count":    success_count,
+        "failed_count":     failed_count,
+        "freed_mb_estimate": round(freed_mb, 2),
+    }
+
+
+def fetch_messages_for_preview(
+    credentials,
+    category: str,
+    sender: str | None = None,
+    max_results: int = 200,
+) -> list[dict]:
+    """
+    Fetches individual message metadata for the preview screen.
+    category: 'large_attachments' | 'bulk_sender' | 'old_promotions'
+    For bulk_sender, sender (email/domain) is required.
+    Returns list of {message_id, sender, subject, date, size_mb, attachment_names}.
+    """
+    service = _gmail_service(credentials)
+
+    if category == "large_attachments":
+        query = "has:attachment larger:5m"
+    elif category == "bulk_sender":
+        if not sender:
+            return []
+        query = f"from:{sender}"
+    elif category == "old_promotions":
+        query = "category:promotions older_than:90d"
+    else:
+        return []
+
+    stubs = _list_messages_all(service, query, max_results)
+    results = []
+    for stub in stubs:
+        try:
+            msg = service.users().messages().get(
+                userId="me",
+                id=stub["id"],
+                format="metadata",
+                metadataHeaders=["From", "Subject"],
+                fields="id,internalDate,sizeEstimate,payload(headers,parts)",
+            ).execute()
+        except HttpError:
+            continue
+
+        headers = msg.get("payload", {}).get("headers", [])
+        parts   = msg.get("payload", {}).get("parts", [])
+        attachment_names = [
+            p["filename"] for p in parts
+            if p.get("filename") and p.get("body", {}).get("attachmentId")
+        ]
+        results.append({
+            "message_id":       msg["id"],
+            "sender":           _get_header(headers, "From"),
+            "subject":          _get_header(headers, "Subject"),
+            "date":             _ts_to_date(msg.get("internalDate", "0")),
+            "size_mb":          _bytes_to_mb(msg.get("sizeEstimate", 0)),
+            "attachment_names": attachment_names,
+        })
+
+    results.sort(key=lambda x: x["size_mb"], reverse=True)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# 8. Empty trash / spam (write operations, permanent)
 # ---------------------------------------------------------------------------
 
 def empty_trash(user_id: str, credentials) -> dict:

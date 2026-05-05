@@ -47,6 +47,18 @@ def init_db():
                 created_at  TIMESTAMP,
                 updated_at  TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS deleted_items (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     TEXT,
+                message_id  TEXT,
+                sender      TEXT,
+                subject     TEXT,
+                size_mb     REAL,
+                deleted_at  TIMESTAMP,
+                action_type TEXT,
+                recoverable BOOLEAN DEFAULT 1
+            );
         """)
 
 
@@ -159,6 +171,43 @@ def get_tips(user_id: str, status: str | None = None) -> list[dict]:
         tip["tip"] = json.loads(tip.pop("tip_json", "{}"))
         results.append(tip)
     return results
+
+
+# ── Deleted items ──────────────────────────────────────────────────────────────
+
+def log_deletion(
+    user_id: str,
+    message_id: str,
+    sender: str,
+    subject: str,
+    size_mb: float,
+    action_type: str,
+    recoverable: bool = True,
+) -> None:
+    now = datetime.utcnow().isoformat()
+    with _conn() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO deleted_items
+               (user_id, message_id, sender, subject, size_mb, deleted_at, action_type, recoverable)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, message_id, sender, subject, size_mb, now, action_type, int(recoverable)),
+        )
+
+
+def get_deleted_items(user_id: str, days: int = 30) -> list[dict]:
+    cutoff = datetime.utcnow().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).isoformat()
+    # crude cutoff: filter by days using strftime comparison
+    with _conn() as conn:
+        rows = conn.execute(
+            """SELECT * FROM deleted_items
+               WHERE user_id = ?
+                 AND deleted_at >= datetime('now', ?)
+               ORDER BY deleted_at DESC""",
+            (user_id, f"-{days} days"),
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 # ── Init on import ─────────────────────────────────────────────────────────────

@@ -7,9 +7,9 @@ load_dotenv()
 
 from auth import get_auth_url, handle_callback, get_credentials
 from signal import load_profile, save_profile, update_field
-from database import get_user, create_user, update_user, get_tips, get_latest_scan
+from database import get_user, create_user, update_user, get_tips, get_latest_scan, get_deleted_items
 from tips import generate_tips, _detect_persona
-from gmail import run_full_scan, empty_trash, empty_spam
+from gmail import run_full_scan, empty_trash, empty_spam, move_to_trash_bulk, fetch_messages_for_preview
 from cache import get_cached_scan, invalidate_cache
 
 app = Flask(__name__)
@@ -30,6 +30,24 @@ def _time_ago(iso_str: str) -> str:
         return f"{diff // 86400} day{'s' if diff // 86400 != 1 else ''} ago"
     except Exception:
         return "unknown"
+
+
+def _require_creds(user_id: str):
+    """
+    Returns (credentials, None) if valid, or (None, error_json_response).
+    All action routes call this before executing.
+    """
+    creds = get_credentials(user_id)
+    if not creds:
+        return None, (
+            jsonify({
+                "success": False,
+                "error": "credentials_expired",
+                "redirect": url_for("auth_login"),
+            }),
+            401,
+        )
+    return creds, None
 
 
 @app.template_filter("commify")
@@ -214,13 +232,115 @@ def action_rescan():
         return redirect(url_for("auth_login"))
 
     user_id = session["user_id"]
-    creds = get_credentials(user_id)
-    if not creds:
+    creds, err = _require_creds(user_id)
+    if err:
         return redirect(url_for("auth_login"))
 
     invalidate_cache(user_id)
     run_full_scan(user_id, creds)
     return redirect(url_for("dashboard"))
+
+
+@app.route("/action/preview-bulk", methods=["POST"])
+def action_preview_bulk():
+    if not session.get("authenticated"):
+        return redirect(url_for("auth_login"))
+
+    user_id = session["user_id"]
+    creds, err = _require_creds(user_id)
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+    category = data.get("category", "")
+    sender   = data.get("sender")  # optional, used for bulk_sender
+
+    VALID_CATEGORIES = {"large_attachments", "bulk_sender", "old_promotions"}
+    if category not in VALID_CATEGORIES:
+        return jsonify({"success": False, "error": "invalid category"}), 400
+
+    items = fetch_messages_for_preview(creds, category, sender=sender)
+
+    PAGE_SIZE = 20
+    page = max(1, int(request.args.get("page", 1)))
+    total = len(items)
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = min(page, total_pages)
+    paged_items = items[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
+
+    total_size_gb = round(sum(i["size_mb"] for i in items) / 1024, 2)
+
+    CATEGORY_TITLES = {
+        "large_attachments": "Large attachments",
+        "bulk_sender":       f"Mail from {sender}" if sender else "Bulk sender mail",
+        "old_promotions":    "Old promotional emails (90+ days)",
+    }
+
+    return render_template(
+        "preview.html",
+        title=CATEGORY_TITLES[category],
+        items=paged_items,
+        total_count=total,
+        selected_count=len(paged_items),
+        total_size_gb=total_size_gb,
+        total_pages=total_pages,
+        page=page,
+        action_type=category,
+        delete_mode="trash",
+        all_ids=[i["message_id"] for i in items],
+    )
+
+
+@app.route("/action/execute", methods=["POST"])
+def action_execute():
+    if not session.get("authenticated"):
+        return jsonify({"success": False, "error": "not authenticated"}), 401
+
+    user_id = session["user_id"]
+    creds, err = _require_creds(user_id)
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+
+    if not data.get("confirm"):
+        return jsonify({"success": False, "error": "confirm required"}), 400
+
+    message_ids = data.get("message_ids", [])
+    if not message_ids or not isinstance(message_ids, list):
+        return jsonify({"success": False, "error": "message_ids required"}), 400
+
+    action = data.get("action", "trash")
+    if action != "trash":
+        return jsonify({"success": False, "error": "only trash action supported"}), 400
+
+    # message_items: we only have IDs here; pass minimal metadata so gmail.py
+    # can log what it has — caller may optionally send richer items
+    message_items = data.get("message_items") or [
+        {"message_id": mid, "sender": "", "subject": "", "size_mb": 0.0}
+        for mid in message_ids
+    ]
+
+    result = move_to_trash_bulk(user_id, creds, message_items)
+    result["success"] = result["failed_count"] == 0 or result["success_count"] > 0
+    return jsonify(result)
+
+
+@app.route("/action/history")
+def action_history():
+    if not session.get("authenticated"):
+        return redirect(url_for("auth_login"))
+
+    user_id = session["user_id"]
+    items = get_deleted_items(user_id, days=30)
+
+    total_freed_mb = round(sum(i.get("size_mb", 0) for i in items), 2)
+
+    return render_template(
+        "history.html",
+        items=items,
+        total_freed_mb=total_freed_mb,
+    )
 
 
 @app.route("/health")
