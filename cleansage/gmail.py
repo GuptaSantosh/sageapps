@@ -207,68 +207,109 @@ def get_large_attachments(credentials, min_size_mb=5, max_results=200):
 
 def get_bulk_senders(credentials, max_messages: int = 200) -> list:
     """
-    Fetches up to max_messages from category:promotions in pages of 100,
-    then uses a gevent Pool(20) to concurrently fetch metadata for each.
-    Aggregates by sender domain and returns top 15.
+    Paginate stubs from category:promotions, fetch metadata concurrently.
+    Token refreshed ONCE before pool — prevents concurrent refresh conflicts.
     """
     from gevent.pool import Pool
+    from google.auth.transport.requests import Request as _GoogleRequest
 
-    _ensure_fresh(credentials)
+    # Refresh once up front — do NOT refresh inside greenlets
+    credentials.refresh(_GoogleRequest())
+    token = credentials.token
 
-    # Collect message stubs across pages (max 2 pages of 100)
+    import requests as _req
+
+    # Step 1: paginate stubs
     stubs = []
     page_token = None
-    per_page = 100
-    pages_needed = max(1, -(-max_messages // per_page))
+    base = GMAIL_BASE
 
-    for _ in range(pages_needed):
-        if len(stubs) >= max_messages:
-            break
-        params = {"q": "category:promotions", "maxResults": per_page}
+    while len(stubs) < max_messages:
+        params = {
+            "q": "category:promotions",
+            "maxResults": min(100, max_messages - len(stubs)),
+            "fields": "messages(id),nextPageToken",
+        }
         if page_token:
             params["pageToken"] = page_token
         try:
-            resp = _get(credentials, f"{GMAIL_BASE}/messages", params)
+            resp = _req.get(
+                f"{base}/messages",
+                headers={"Authorization": f"Bearer {token}"},
+                params=params,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
         except Exception:
             break
-        batch = resp.get("messages", [])
+        batch = data.get("messages", [])
+        if not batch:
+            break
         stubs.extend(batch)
-        page_token = resp.get("nextPageToken")
+        page_token = data.get("nextPageToken")
         if not page_token:
             break
 
-    stubs = stubs[:max_messages]
+    if not stubs:
+        return []
 
-    # Concurrent metadata fetches with gevent Pool
-    domain_counts: dict[str, int] = defaultdict(int)
-    lock = __import__("threading").Lock()
-
+    # Step 2: concurrent metadata fetch — token passed directly, no refresh inside
     def fetch_one(stub):
         try:
-            msg = _get(credentials, f"{GMAIL_BASE}/messages/{stub['id']}", {
-                "format":          "metadata",
-                "metadataHeaders": ["From"],
-            })
+            resp = _req.get(
+                f"{base}/messages/{stub['id']}",
+                headers={"Authorization": f"Bearer {token}"},
+                params={
+                    "format": "metadata",
+                    "metadataHeaders": ["From"],
+                    "fields": "sizeEstimate,payload/headers",
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            return resp.json()
         except Exception:
-            return
-        sender = _get_header(msg.get("payload", {}).get("headers", []), "From")
-        email  = _extract_sender_email(sender)
-        if not email or "@" not in email:
-            return
-        domain = email.split("@", 1)[1].lower()
-        with lock:
-            domain_counts[domain] += 1
+            return None
 
     pool = Pool(20)
-    pool.map(fetch_one, stubs)
+    results = pool.map(fetch_one, stubs)
 
-    results = [
-        {"sender": d, "count": c, "category": "promotions", "estimated_size_mb": round(c * 0.08, 2)}
-        for d, c in domain_counts.items()
-        if c >= 2
-    ]
-    results.sort(key=lambda x: x["count"], reverse=True)
-    return results[:15]
+    # Step 3: aggregate by domain
+    domain_data: dict = defaultdict(lambda: {
+        "count": 0, "total_size": 0, "sampled": 0, "top_senders": set()
+    })
+
+    for msg in results:
+        if not msg:
+            continue
+        sender = _get_header(msg.get("payload", {}).get("headers", []), "From")
+        if not sender:
+            continue
+        domain = _extract_sender_domain(sender)
+        email  = _extract_sender_email(sender)
+        size   = msg.get("sizeEstimate", 0)
+
+        domain_data[domain]["count"] += 1
+        domain_data[domain]["top_senders"].add(email)
+        if domain_data[domain]["sampled"] < 5:
+            domain_data[domain]["total_size"] += size
+            domain_data[domain]["sampled"] += 1
+
+    # Step 4: build output
+    output = []
+    for domain, d in domain_data.items():
+        avg_size = (d["total_size"] / d["sampled"]) if d["sampled"] else 0
+        estimated_size_mb = _bytes_to_mb(int(avg_size * d["count"]))
+        output.append({
+            "domain":            domain,
+            "count":             d["count"],
+            "estimated_size_mb": estimated_size_mb,
+            "top_senders":       list(d["top_senders"])[:3],
+        })
+
+    output.sort(key=lambda x: x["count"], reverse=True)
+    return output[:15]
 
 
 # ---------------------------------------------------------------------------
