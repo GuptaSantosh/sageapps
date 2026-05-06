@@ -136,11 +136,11 @@ def get_storage_quota(credentials) -> dict:
 # 2. Storage breakdown by Gmail label
 # ---------------------------------------------------------------------------
 
-def get_storage_breakdown_by_label(credentials) -> list:
+def get_storage_breakdown_by_label(credentials) -> dict:
     """
-    For each major Gmail label: get exact message count via labels.get,
-    sample 20 messages for avg size, extrapolate total GB.
-    ~10 API calls total. Returns list sorted by estimated_gb desc.
+    Returns exact message counts per Gmail label + All Mail total.
+    No GB estimates per label — counts are accurate, GB estimates are not.
+    One API call per label. ~10 calls total.
     """
     from google.auth.transport.requests import Request as _GoogleRequest
     import requests as _req
@@ -150,20 +150,19 @@ def get_storage_breakdown_by_label(credentials) -> list:
     headers = {"Authorization": f"Bearer {token}"}
 
     LABELS = [
-        ("CATEGORY_PROMOTIONS", "Promotions"),
-        ("SENT",                "Sent Mail"),
-        ("CATEGORY_UPDATES",    "Updates"),
-        ("CATEGORY_SOCIAL",     "Social"),
-        ("CATEGORY_FORUMS",     "Forums"),
-        ("INBOX",               "Inbox"),
-        ("SPAM",                "Spam"),
-        ("TRASH",               "Trash"),
+        ("ALL",                  "All Mail"),
+        ("INBOX",                "Inbox"),
+        ("CATEGORY_UPDATES",     "Updates"),
+        ("CATEGORY_PROMOTIONS",  "Promotions"),
+        ("SENT",                 "Sent Mail"),
+        ("CATEGORY_SOCIAL",      "Social"),
+        ("CATEGORY_FORUMS",      "Forums"),
+        ("SPAM",                 "Spam"),
+        ("TRASH",                "Trash"),
     ]
 
-    results = []
-
+    counts = {}
     for label_id, label_name in LABELS:
-        # Step 1: exact count from labels.get
         try:
             r = _req.get(
                 f"{GMAIL_BASE}/labels/{label_id}",
@@ -172,68 +171,37 @@ def get_storage_breakdown_by_label(credentials) -> list:
             )
             r.raise_for_status()
             info = r.json()
-            total_count = info.get("messagesTotal", 0)
+            counts[label_id] = {
+                "label_name":    label_name,
+                "message_count": info.get("messagesTotal", 0),
+            }
         except Exception:
-            total_count = 0
-
-        if total_count == 0:
-            results.append({
-                "label_id":      label_id,
+            counts[label_id] = {
                 "label_name":    label_name,
                 "message_count": 0,
-                "avg_size_kb":   0.0,
-                "estimated_gb":  0.0,
-            })
+            }
+
+    total = counts.get("ALL", {}).get("message_count", 0)
+
+    breakdown = []
+    for label_id, label_name in LABELS:
+        if label_id == "ALL":
             continue
-
-        # Step 2: sample 20 messages for avg size
-        try:
-            list_r = _req.get(
-                f"{GMAIL_BASE}/messages",
-                headers=headers,
-                params={
-                    "labelIds":   label_id,
-                    "maxResults": 20,
-                    "fields":     "messages(id)",
-                },
-                timeout=10,
-            )
-            list_r.raise_for_status()
-            stubs = list_r.json().get("messages", [])
-        except Exception:
-            stubs = []
-
-        total_size = 0
-        sampled = 0
-        for stub in stubs:
-            try:
-                msg_r = _req.get(
-                    f"{GMAIL_BASE}/messages/{stub['id']}",
-                    headers=headers,
-                    params={"format": "minimal", "fields": "sizeEstimate"},
-                    timeout=10,
-                )
-                msg_r.raise_for_status()
-                total_size += msg_r.json().get("sizeEstimate", 0)
-                sampled += 1
-            except Exception:
-                continue
-
-        avg_size_bytes = (total_size / sampled) if sampled else 0
-        estimated_bytes = avg_size_bytes * total_count
-        estimated_gb = _bytes_to_gb(int(estimated_bytes))
-        avg_size_kb = round(avg_size_bytes / 1024, 1)
-
-        results.append({
+        count = counts.get(label_id, {}).get("message_count", 0)
+        pct = round((count / total * 100), 1) if total else 0.0
+        breakdown.append({
             "label_id":      label_id,
             "label_name":    label_name,
-            "message_count": total_count,
-            "avg_size_kb":   avg_size_kb,
-            "estimated_gb":  estimated_gb,
+            "message_count": count,
+            "pct_of_total":  pct,
         })
 
-    results.sort(key=lambda x: x["estimated_gb"], reverse=True)
-    return results
+    breakdown.sort(key=lambda x: x["message_count"], reverse=True)
+
+    return {
+        "total_count": total,
+        "breakdown":   breakdown,
+    }
 
 
 # ---------------------------------------------------------------------------
