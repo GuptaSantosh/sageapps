@@ -103,6 +103,7 @@ def _list_messages_all(service, query: str, max_results: int) -> list:
 # ---------------------------------------------------------------------------
 
 def get_storage_quota(credentials) -> dict:
+    _ensure_fresh(credentials)
     service = _drive_service(credentials)
     about   = service.about().get(fields="storageQuota").execute()
     quota   = about.get("storageQuota", {})
@@ -144,6 +145,7 @@ def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int =
     Per-bucket cap: max_results // 3 IDs; combined + sorted by size desc.
     Returns: [{message_id, sender, subject, date, size_mb, attachment_names, date_bucket}]
     """
+    _ensure_fresh(credentials)
     base   = f"has:attachment larger:{threshold_mb}m"
     bucket_queries = [
         (f"{base} before:2021/1/1",                      "5y+"),
@@ -207,6 +209,7 @@ def get_bulk_senders(credentials, min_count: int = 2) -> list:
     Single messages.list for category:promotions (maxResults=20),
     one metadata GET per result. Returns top 10 senders.
     """
+    _ensure_fresh(credentials)
     try:
         list_resp = _get(credentials, f"{GMAIL_BASE}/messages", {
             "q":          "category:promotions",
@@ -255,6 +258,7 @@ def get_spam_and_trash_size(credentials) -> dict:
     Uses labels.get for exact count, samples 5 messages for avg size.
     Two label lookups + 10 message fetches total — fast.
     """
+    _ensure_fresh(credentials)
 
     def _label_stats(label_id: str) -> tuple[int, float]:
         # Count from label info (one call)
@@ -310,6 +314,7 @@ def get_spam_and_trash_size(credentials) -> dict:
 # ---------------------------------------------------------------------------
 
 def get_old_promotions(credentials, days: int = 90) -> dict:
+    _ensure_fresh(credentials)
     query = f"category:promotions older_than:{days}d"
 
     # Count — use resultSizeEstimate from a maxResults=1 call
@@ -512,6 +517,7 @@ def fetch_messages_for_preview(
 # ---------------------------------------------------------------------------
 
 def empty_trash(user_id: str, credentials) -> dict:
+    _ensure_fresh(credentials)
     service       = _gmail_service(credentials)
     stats         = get_spam_and_trash_size(credentials)
     freed_mb      = stats["trash_size_mb"]
@@ -537,6 +543,7 @@ def empty_trash(user_id: str, credentials) -> dict:
 
 
 def empty_spam(user_id: str, credentials) -> dict:
+    _ensure_fresh(credentials)
     service       = _gmail_service(credentials)
     stats         = get_spam_and_trash_size(credentials)
     freed_mb      = stats["spam_size_mb"]
