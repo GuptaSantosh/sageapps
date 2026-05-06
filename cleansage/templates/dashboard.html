@@ -48,7 +48,39 @@
       </div>
     </section>
 
-    <!-- Section 2: Quick Wins -->
+    <!-- Section 2: Cleanup Opportunities -->
+    <section id="cleanup-tiers-section" class="hidden">
+      <h2 class="text-base font-semibold mb-3 text-gray-700 dark:text-gray-300">Cleanup Opportunities</h2>
+
+      <div class="tier-block" id="tier-safe">
+        <div class="tier-header tier-safe-header">
+          <span class="tier-dot green"></span>
+          <strong>Safe to Delete</strong>
+          <span class="tier-subtitle">No review needed. Zero risk.</span>
+        </div>
+        <div class="tier-rows" id="tier-safe-rows"></div>
+      </div>
+
+      <div class="tier-block" id="tier-quick">
+        <div class="tier-header tier-quick-header">
+          <span class="tier-dot yellow"></span>
+          <strong>Quick Wins</strong>
+          <span class="tier-subtitle">Glance and confirm. Low risk.</span>
+        </div>
+        <div class="tier-rows" id="tier-quick-rows"></div>
+      </div>
+
+      <div class="tier-block" id="tier-review">
+        <div class="tier-header tier-review-header">
+          <span class="tier-dot red"></span>
+          <strong>Review Carefully</strong>
+          <span class="tier-subtitle">Could contain important emails.</span>
+        </div>
+        <div class="tier-rows" id="tier-review-rows"></div>
+      </div>
+    </section>
+
+    <!-- Section 3: Quick Wins -->
     <section id="quick-wins-section" class="hidden">
       <h2 class="text-base font-semibold mb-3 text-gray-700 dark:text-gray-300">Quick Wins</h2>
       <div id="quick-wins-grid" class="grid sm:grid-cols-2 gap-3"></div>
@@ -117,6 +149,77 @@
   </div>
 </div>
 
+<style>
+  /* Cleanup tiers */
+  .tier-block {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .tier-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+  }
+  .tier-subtitle {
+    color: var(--text-muted, #6b7280);
+    font-size: 0.82rem;
+    margin-left: 4px;
+  }
+  .tier-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .tier-dot.green  { background: #22c55e; }
+  .tier-dot.yellow { background: #f59e0b; }
+  .tier-dot.red    { background: #ef4444; }
+  .tier-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border, #f3f4f6);
+    gap: 12px;
+  }
+  .tier-row:last-child { border-bottom: none; }
+  .tier-row-left { flex: 1; }
+  .tier-row-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text, #111827);
+  }
+  .tier-row-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted, #6b7280);
+    margin-top: 2px;
+  }
+  .tier-row-count {
+    font-size: 0.85rem;
+    color: var(--text-muted, #6b7280);
+    white-space: nowrap;
+    margin-right: 12px;
+  }
+  .tier-btn {
+    font-size: 0.8rem;
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .tier-btn.delete  { background:#ef4444; color:#fff; }
+  .tier-btn.preview { background:#f59e0b; color:#fff; }
+  .tier-btn.review  { background:#6b7280; color:#fff; }
+  .tier-btn:disabled { opacity:0.4; cursor:not-allowed; }
+</style>
+
 <script>
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -154,6 +257,7 @@
     renderQuota(q);
     renderQuickWins(scan.spam_trash || {});
     renderBreakdown(q, scan);
+    renderTiers(scan.cleanup_tiers);
     el('scanned-ago').textContent = scannedAgo;
 
     el('scan-loading').classList.add('hidden');
@@ -313,6 +417,86 @@
       </div>`;
 
     el('breakdown-list').innerHTML = html;
+  }
+
+  // ── Cleanup tiers ─────────────────────────────────────────────────────────
+
+  function renderTiers(tiers) {
+    if (!tiers) return;
+
+    const section = document.getElementById('cleanup-tiers-section');
+    if (section) section.classList.remove('hidden');
+
+    function _fmt(count, capped) {
+      if (!count) return '0';
+      return capped ? count.toLocaleString() + '+' : count.toLocaleString();
+    }
+
+    function _btn(item) {
+      const labels = {
+        delete:  ['Delete',  'delete'],
+        preview: ['Preview', 'preview'],
+        review:  ['Review',  'review'],
+      };
+      const [text, cls] = labels[item.action] || ['View', 'review'];
+      const disabled = item.count === 0 ? 'disabled' : '';
+      return `<button class="tier-btn ${cls}" ${disabled}
+        onclick="handleTierAction('${item.key}', '${item.action}',
+        ${JSON.stringify(item.query).replace(/"/g, '&quot;')})">
+        ${text}
+      </button>`;
+    }
+
+    function _rows(items, containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      if (!items || !items.length) {
+        container.innerHTML = '<div class="tier-row"><div class="tier-row-left"><span class="tier-row-desc">Nothing found.</span></div></div>';
+        return;
+      }
+      container.innerHTML = items.map(item => `
+        <div class="tier-row">
+          <div class="tier-row-left">
+            <div class="tier-row-label">${item.label}</div>
+            <div class="tier-row-desc">${item.description}</div>
+          </div>
+          <span class="tier-row-count">
+            ${_fmt(item.count, item.capped)} emails
+          </span>
+          ${_btn(item)}
+        </div>
+      `).join('');
+    }
+
+    _rows(tiers.safe,             'tier-safe-rows');
+    _rows(tiers.quick_wins,       'tier-quick-rows');
+    _rows(tiers.review_carefully, 'tier-review-rows');
+  }
+
+  function handleTierAction(key, action, query) {
+    if (action === 'delete') {
+      if (key === 'spam') {
+        if (!confirm('Permanently delete all spam emails?')) return;
+        fetch('/action/empty-spam', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({confirm: true})
+        }).then(() => loadScan(true));
+      } else if (key === 'trash') {
+        if (!confirm('Permanently empty trash?')) return;
+        fetch('/action/empty-trash', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({confirm: true})
+        }).then(() => loadScan(true));
+      } else {
+        window.location.href = '/action/preview-bulk?' +
+          new URLSearchParams({category: 'query', q: query});
+      }
+    } else {
+      window.location.href = '/action/preview-bulk?' +
+        new URLSearchParams({category: 'query', q: query});
+    }
   }
 
   // ── Modal ─────────────────────────────────────────────────────────────────
