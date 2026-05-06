@@ -399,7 +399,148 @@ def get_bulk_senders(credentials, max_messages: int = 200) -> list:
 
 
 # ---------------------------------------------------------------------------
-# 4. Spam and trash size  (direct requests)
+# 4. Cleanup tiers
+# ---------------------------------------------------------------------------
+
+def get_cleanup_tiers(credentials) -> dict:
+    """
+    Runs 9 targeted Gmail queries to build risk-tiered cleanup opportunities.
+    Uses resultSizeEstimate — one API call per bucket, fast.
+    Returns three tiers: safe, quick_wins, review_carefully.
+    """
+    from google.auth.transport.requests import Request as _GoogleRequest
+    import requests as _req
+
+    credentials.refresh(_GoogleRequest())
+    token = credentials.token
+    headers = {"Authorization": f"Bearer {token}"}
+    base = f"{GMAIL_BASE}/messages"
+
+    def _count(query: str) -> int:
+        try:
+            r = _req.get(
+                base,
+                headers=headers,
+                params={"q": query, "maxResults": 1,
+                        "fields": "resultSizeEstimate"},
+                timeout=10,
+            )
+            r.raise_for_status()
+            return r.json().get("resultSizeEstimate", 0)
+        except Exception:
+            return 0
+
+    # Tier 1 — Safe to delete, no review needed
+    spam_count  = _count("label:spam")
+    trash_count = _count("label:trash")
+    otp_count   = _count(
+        "is:read older_than:30d "
+        "subject:(OTP OR \"one time password\" OR \"verification code\" "
+        "OR \"OTP is\" OR \"your code is\")"
+    )
+    delivery_count = _count(
+        "is:read older_than:30d "
+        "subject:(delivered OR shipped OR \"out for delivery\" "
+        "OR \"order confirmed\" OR \"order shipped\")"
+    )
+
+    # Tier 2 — Quick wins, glance and confirm
+    old_promos_count  = _count("category:promotions older_than:2y is:read")
+    old_updates_count = _count("category:updates older_than:1y is:read")
+    old_social_count  = _count("category:social older_than:6m is:read")
+
+    # Tier 3 — Review carefully
+    receipts_count = _count(
+        "subject:(invoice OR receipt OR booking OR ticket "
+        "OR \"order summary\" OR \"payment confirmation\") "
+        "has:attachment"
+    )
+    sent_attach_count = _count("in:sent has:attachment")
+
+    return {
+        "safe": [
+            {
+                "key":         "spam",
+                "label":       "Spam",
+                "count":       spam_count,
+                "query":       "label:spam",
+                "action":      "delete",
+                "description": "Spam emails. Safe to delete immediately.",
+            },
+            {
+                "key":         "trash",
+                "label":       "Trash",
+                "count":       trash_count,
+                "query":       "label:trash",
+                "action":      "delete",
+                "description": "Already in trash. Permanently delete now.",
+            },
+            {
+                "key":         "old_otps",
+                "label":       "Old OTPs & verification codes",
+                "count":       otp_count,
+                "query":       "is:read older_than:30d subject:(OTP OR \"one time password\" OR \"verification code\" OR \"OTP is\" OR \"your code is\")",
+                "action":      "delete",
+                "description": "Read OTPs older than 30 days. Completely useless.",
+            },
+            {
+                "key":         "delivery_alerts",
+                "label":       "Old delivery alerts",
+                "count":       delivery_count,
+                "query":       "is:read older_than:30d subject:(delivered OR shipped OR \"out for delivery\" OR \"order confirmed\" OR \"order shipped\")",
+                "action":      "delete",
+                "description": "Read shipping notifications older than 30 days.",
+            },
+        ],
+        "quick_wins": [
+            {
+                "key":         "old_promotions",
+                "label":       "Promotions older than 2 years",
+                "count":       old_promos_count,
+                "query":       "category:promotions older_than:2y is:read",
+                "action":      "preview",
+                "description": "Old read promotional emails. Almost certainly junk.",
+            },
+            {
+                "key":         "old_updates",
+                "label":       "Updates older than 1 year",
+                "count":       old_updates_count,
+                "query":       "category:updates older_than:1y is:read",
+                "action":      "preview",
+                "description": "Old read notifications and newsletters.",
+            },
+            {
+                "key":         "old_social",
+                "label":       "Social notifications older than 6 months",
+                "count":       old_social_count,
+                "query":       "category:social older_than:6m is:read",
+                "action":      "preview",
+                "description": "Old LinkedIn, Twitter, Facebook notifications.",
+            },
+        ],
+        "review_carefully": [
+            {
+                "key":         "receipts",
+                "label":       "Receipts & invoices with attachments",
+                "count":       receipts_count,
+                "query":       "subject:(invoice OR receipt OR booking OR ticket OR \"order summary\" OR \"payment confirmation\") has:attachment",
+                "action":      "review",
+                "description": "May contain tax documents, warranties, tickets. Review before deleting.",
+            },
+            {
+                "key":         "sent_attachments",
+                "label":       "Sent emails with attachments",
+                "count":       sent_attach_count,
+                "query":       "in:sent has:attachment",
+                "action":      "review",
+                "description": "Files you sent. Could be important documents.",
+            },
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# 5. Spam and trash size  (direct requests)
 # ---------------------------------------------------------------------------
 
 def get_spam_and_trash_size(credentials) -> dict:
@@ -557,6 +698,11 @@ def run_full_scan(user_id: str, credentials) -> dict:
         [],
         credentials,
     )
+    cleanup_tiers = _safe_call(
+        get_cleanup_tiers,
+        {"safe": [], "quick_wins": [], "review_carefully": []},
+        credentials,
+    )
 
     breakdown = {
         "quota":             quota,
@@ -565,6 +711,7 @@ def run_full_scan(user_id: str, credentials) -> dict:
         "old_promotions":    old_promos,
         "bulk_senders":      [],
         "label_breakdown":   label_breakdown,
+        "cleanup_tiers":     cleanup_tiers,
     }
 
     save_scan_result(
