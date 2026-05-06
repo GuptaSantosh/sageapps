@@ -137,28 +137,45 @@ def get_storage_quota(credentials) -> dict:
 
 def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int = 50) -> list:
     """
-    Direct requests to Gmail REST API.
-    Step 1: messages.list  — one call, returns up to max_results IDs.
-    Step 2: messages.get   — one call per ID, format=metadata only.
-    Returns: [{message_id, sender, subject, date, size_mb, attachment_names}]
+    Runs 3 date-bucketed queries so each result carries a date_bucket label:
+      "5y+"    — before 2021/1/1
+      "2-5y"   — 2021/1/1 – 2023/1/1
+      "recent" — after 2023/1/1
+    Per-bucket cap: max_results // 3 IDs; combined + sorted by size desc.
+    Returns: [{message_id, sender, subject, date, size_mb, attachment_names, date_bucket}]
     """
-    try:
-        list_resp = _get(credentials, f"{GMAIL_BASE}/messages", {
-            "q":          f"has:attachment larger:{threshold_mb}m",
-            "maxResults": max_results,
-            "fields":     "messages(id)",
-        })
-    except Exception:
-        return []
+    base   = f"has:attachment larger:{threshold_mb}m"
+    bucket_queries = [
+        (f"{base} before:2021/1/1",                      "5y+"),
+        (f"{base} after:2021/1/1 before:2023/1/1",       "2-5y"),
+        (f"{base} after:2023/1/1",                        "recent"),
+    ]
+    per_bucket = max(1, max_results // 3)
 
-    stubs = list_resp.get("messages", [])
-    if not stubs:
-        return []
+    # Collect (stub_id, bucket) pairs across all three queries
+    tagged_stubs: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    for query, bucket in bucket_queries:
+        try:
+            list_resp = _get(credentials, f"{GMAIL_BASE}/messages", {
+                "q":          query,
+                "maxResults": per_bucket,
+                "fields":     "messages(id)",
+            })
+        except Exception:
+            continue
+
+        for stub in list_resp.get("messages", []):
+            mid = stub["id"]
+            if mid not in seen:
+                seen.add(mid)
+                tagged_stubs.append((mid, bucket))
 
     results = []
-    for stub in stubs:
+    for msg_id, bucket in tagged_stubs:
         try:
-            msg = _get(credentials, f"{GMAIL_BASE}/messages/{stub['id']}", {
+            msg = _get(credentials, f"{GMAIL_BASE}/messages/{msg_id}", {
                 "format":          "metadata",
                 "metadataHeaders": ["From", "Subject"],
                 "fields":          "id,internalDate,sizeEstimate,payload/headers",
@@ -174,6 +191,7 @@ def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int =
             "date":             _ts_to_date(msg.get("internalDate", "0")),
             "size_mb":          _bytes_to_mb(msg.get("sizeEstimate", 0)),
             "attachment_names": [],
+            "date_bucket":      bucket,
         })
 
     results.sort(key=lambda x: x["size_mb"], reverse=True)
