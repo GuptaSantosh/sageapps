@@ -18,8 +18,8 @@ DRIVE_BASE  = "https://www.googleapis.com/drive/v3"
 # ---------------------------------------------------------------------------
 
 def _ensure_fresh(credentials):
-    """Refresh token in-place if expired."""
-    if credentials.expired and credentials.refresh_token:
+    """Always force-refresh — expired flag is unreliable with Google OAuth."""
+    if credentials.refresh_token:
         credentials.refresh(_GoogleRequest())
 
 
