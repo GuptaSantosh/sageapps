@@ -150,7 +150,6 @@ def get_storage_breakdown_by_label(credentials) -> dict:
     headers = {"Authorization": f"Bearer {token}"}
 
     LABELS = [
-        ("ALL",                  "All Mail"),
         ("INBOX",                "Inbox"),
         ("CATEGORY_UPDATES",     "Updates"),
         ("CATEGORY_PROMOTIONS",  "Promotions"),
@@ -160,6 +159,25 @@ def get_storage_breakdown_by_label(credentials) -> dict:
         ("SPAM",                 "Spam"),
         ("TRASH",                "Trash"),
     ]
+
+    # Get true total from profile — labels API has no "ALL MAIL" label
+    try:
+        profile_r = _req.get(
+            f"{GMAIL_BASE.replace('/messages', '')}/profile"
+                .replace("/messages", ""),
+            headers=headers,
+            timeout=10,
+        )
+        # Simpler: build URL directly
+        profile_r = _req.get(
+            "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+            headers=headers,
+            timeout=10,
+        )
+        profile_r.raise_for_status()
+        total = profile_r.json().get("messagesTotal", 0)
+    except Exception:
+        total = 0
 
     counts = {}
     for label_id, label_name in LABELS:
@@ -181,12 +199,8 @@ def get_storage_breakdown_by_label(credentials) -> dict:
                 "message_count": 0,
             }
 
-    total = counts.get("ALL", {}).get("message_count", 0)
-
     breakdown = []
     for label_id, label_name in LABELS:
-        if label_id == "ALL":
-            continue
         count = counts.get(label_id, {}).get("message_count", 0)
         pct = round((count / total * 100), 1) if total else 0.0
         breakdown.append({
