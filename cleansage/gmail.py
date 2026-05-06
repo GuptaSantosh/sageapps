@@ -200,7 +200,6 @@ def get_bulk_senders(credentials, min_count: int = 2) -> list:
     except Exception:
         return []
 
-    print(f"[DEBUG] get_bulk_senders got {len(list_resp.get('messages', []))} messages")
     stubs = list_resp.get("messages", [])
     sender_data: dict[str, dict] = defaultdict(lambda: {"count": 0, "category": ""})
 
@@ -319,7 +318,6 @@ def get_old_promotions(credentials, days: int = 90) -> dict:
     except Exception:
         return {"count": count, "estimated_size_mb": 0.0, "sample_senders": []}
 
-    print(f"[DEBUG] get_old_promotions sample got {len(list_resp.get('messages', []))} messages")
     stubs        = list_resp.get("messages", [])
     total_size   = 0
     sender_counts: dict[str, int] = defaultdict(int)

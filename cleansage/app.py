@@ -1,3 +1,5 @@
+from gevent import monkey
+monkey.patch_all()
 import os
 from datetime import datetime, timezone
 from flask import Flask, redirect, request, session, render_template, jsonify, url_for
@@ -344,6 +346,56 @@ def action_history():
         total_freed_mb=total_freed_mb,
     )
 
+
+
+@app.route("/review/large-attachments")
+def review_large_attachments():
+    if not session.get("authenticated"):
+        return redirect(url_for("auth_login"))
+
+    user_id = session["user_id"]
+    creds, err = _require_creds(user_id)
+    if err:
+        return err
+
+    scan = get_cached_scan(user_id)
+    if not scan:
+        scan = run_full_scan(user_id, creds)
+
+    items = scan.get("large_attachments", [])
+
+    # Normalise keys to match preview.html expectations
+    normalised = []
+    for it in items:
+        normalised.append({
+            "message_id": it.get("id", ""),
+            "subject":    it.get("subject", "(no subject)"),
+            "sender":     it.get("from", ""),
+            "date":       it.get("date", ""),
+            "size_mb":    it.get("size_mb", 0),
+            "attachment_names": [],
+        })
+
+    page      = int(request.args.get("page", 1))
+    per_page  = 25
+    total     = len(normalised)
+    total_pages = max(1, -(-total // per_page))  # ceiling div
+    start     = (page - 1) * per_page
+    page_items = normalised[start:start + per_page]
+    total_size_gb = round(sum(i["size_mb"] for i in normalised) / 1024, 2)
+
+    return render_template(
+        "preview.html",
+        title="Large Attachments",
+        items=page_items,
+        total_count=total,
+        selected_count=len(page_items),
+        total_size_gb=total_size_gb,
+        total_pages=total_pages,
+        page=page,
+        action_type="large_attachments",
+        delete_mode="trash",
+    )
 
 @app.route("/telegram/webhook", methods=["POST"])
 def telegram_webhook():
