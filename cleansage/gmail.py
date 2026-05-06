@@ -163,11 +163,11 @@ def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int =
             list_resp = _get(credentials, f"{GMAIL_BASE}/messages", {
                 "q":          query,
                 "maxResults": per_bucket,
-                "fields":     "messages(id)",
             })
         except Exception:
             continue
 
+        print(f"[DEBUG] bucket={bucket} got {len(list_resp.get('messages', []))} messages")
         for stub in list_resp.get("messages", []):
             mid = stub["id"]
             if mid not in seen:
@@ -230,11 +230,11 @@ def get_bulk_senders(credentials, min_count: int = 2) -> list:
         list_resp = _get(credentials, f"{GMAIL_BASE}/messages", {
             "q":          "category:promotions",
             "maxResults": 20,
-            "fields":     "messages(id)",
         })
     except Exception:
         return []
 
+    print(f"[DEBUG] get_bulk_senders got {len(list_resp.get('messages', []))} messages")
     stubs = list_resp.get("messages", [])
     sender_data: dict[str, dict] = defaultdict(lambda: {"count": 0, "category": ""})
 
@@ -349,11 +349,11 @@ def get_old_promotions(credentials, days: int = 90) -> dict:
         list_resp = _get(credentials, f"{GMAIL_BASE}/messages", {
             "q":          query,
             "maxResults": 20,
-            "fields":     "messages(id)",
         })
     except Exception:
         return {"count": count, "estimated_size_mb": 0.0, "sample_senders": []}
 
+    print(f"[DEBUG] get_old_promotions sample got {len(list_resp.get('messages', []))} messages")
     stubs        = list_resp.get("messages", [])
     total_size   = 0
     sender_counts: dict[str, int] = defaultdict(int)
