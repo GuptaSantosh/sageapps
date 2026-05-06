@@ -136,84 +136,56 @@ def get_storage_quota(credentials) -> dict:
 # 2. Large attachments  (direct requests — bypasses httplib2)
 # ---------------------------------------------------------------------------
 
-def get_large_attachments(self, min_size_mb=5):
-    """Find emails with large attachments. DEBUG VERSION."""
-    import sys
-    
+def get_large_attachments(credentials, min_size_mb=5, max_results=200):
+    """Find emails with large attachments, paginated."""
     min_size_bytes = min_size_mb * 1024 * 1024
     results = []
-    
-    try:
-        print(f"[DEBUG] get_large_attachments: starting, min_size={min_size_mb}MB", flush=True)
-        
-        # Step 1: List call
+    service = _gmail_service(credentials)
+    page_token = None
+
+    while len(results) < max_results:
         params = {
+            'userId': 'me',
             'q': f'has:attachment larger:{min_size_mb}m',
-            'maxResults': 20
+            'maxResults': min(50, max_results - len(results))
         }
-        print(f"[DEBUG] Step 1: calling messages.list with params={params}", flush=True)
-        
-        response = self.service.users().messages().list(
-            userId='me', **params
-        ).execute()
-        
-        print(f"[DEBUG] Step 1 response keys: {list(response.keys())}", flush=True)
-        print(f"[DEBUG] resultSizeEstimate: {response.get('resultSizeEstimate')}", flush=True)
-        
+        if page_token:
+            params['pageToken'] = page_token
+
+        response = service.users().messages().list(**params).execute()
         messages = response.get('messages', [])
-        print(f"[DEBUG] messages count in response: {len(messages)}", flush=True)
-        
+
         if not messages:
-            print("[DEBUG] EARLY EXIT: messages list is empty", flush=True)
-            return []
-        
-        # Step 2: Per-message detail fetch
-        for i, msg in enumerate(messages):
-            msg_id = msg.get('id')
-            print(f"[DEBUG] Step 2 [{i}]: fetching message id={msg_id}", flush=True)
-            
+            break
+
+        for msg in messages:
             try:
-                detail = self.service.users().messages().get(
+                detail = service.users().messages().get(
                     userId='me',
-                    id=msg_id,
+                    id=msg['id'],
                     format='metadata',
                     metadataHeaders=['Subject', 'From', 'Date']
                 ).execute()
-                
+
                 size = detail.get('sizeEstimate', 0)
-                print(f"[DEBUG] [{i}] sizeEstimate={size}, threshold={min_size_bytes}", flush=True)
-                
                 if size >= min_size_bytes:
-                    headers = {h['name']: h['value'] 
+                    headers = {h['name']: h['value']
                                for h in detail.get('payload', {}).get('headers', [])}
                     results.append({
-                        'id': msg_id,
+                        'id': msg['id'],
                         'subject': headers.get('Subject', '(no subject)'),
                         'from': headers.get('From', ''),
                         'date': headers.get('Date', ''),
                         'size_mb': round(size / (1024 * 1024), 1)
                     })
-                    print(f"[DEBUG] [{i}] ADDED to results. Total so far: {len(results)}", flush=True)
-                else:
-                    print(f"[DEBUG] [{i}] SKIPPED — size below threshold", flush=True)
-                    
-            except Exception as e:
-                print(f"[DEBUG] [{i}] ERROR on message {msg_id}: {type(e).__name__}: {e}", flush=True)
+            except Exception:
                 continue
-        
-        print(f"[DEBUG] DONE. Total results: {len(results)}", flush=True)
-        return results
-        
-    except Exception as e:
-        print(f"[DEBUG] OUTER ERROR: {type(e).__name__}: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-        return []
 
+        page_token = response.get('nextPageToken')
+        if not page_token:
+            break
 
-# ---------------------------------------------------------------------------
-# 3. Bulk senders  (direct requests)
-# ---------------------------------------------------------------------------
+    return results
 
 def get_bulk_senders(credentials, min_count: int = 2) -> list:
     """
