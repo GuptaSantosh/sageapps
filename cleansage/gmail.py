@@ -404,9 +404,9 @@ def get_bulk_senders(credentials, max_messages: int = 200) -> list:
 
 def get_cleanup_tiers(credentials) -> dict:
     """
-    Runs 9 targeted Gmail queries to build risk-tiered cleanup opportunities.
-    Uses resultSizeEstimate — one API call per bucket, fast.
-    Returns three tiers: safe, quick_wins, review_carefully.
+    Risk-tiered cleanup buckets.
+    Label-based counts: exact via labels.get.
+    Query-based counts: paginate up to 500 stubs for real count.
     """
     from google.auth.transport.requests import Request as _GoogleRequest
     import requests as _req
@@ -416,46 +416,77 @@ def get_cleanup_tiers(credentials) -> dict:
     headers = {"Authorization": f"Bearer {token}"}
     base = f"{GMAIL_BASE}/messages"
 
-    def _count(query: str) -> int:
+    def _label_count(label_id: str) -> int:
+        """Exact count from labels.get."""
         try:
             r = _req.get(
-                base,
+                f"{GMAIL_BASE}/labels/{label_id}",
                 headers=headers,
-                params={"q": query, "maxResults": 1,
-                        "fields": "resultSizeEstimate"},
                 timeout=10,
             )
             r.raise_for_status()
-            return r.json().get("resultSizeEstimate", 0)
+            return r.json().get("messagesTotal", 0)
         except Exception:
             return 0
 
-    # Tier 1 — Safe to delete, no review needed
-    spam_count  = _count("label:spam")
-    trash_count = _count("label:trash")
-    otp_count   = _count(
+    def _query_count(query: str, max_fetch: int = 500) -> int:
+        """
+        Paginate up to max_fetch stubs to get real count.
+        Returns actual count if under max_fetch, else max_fetch (meaning max_fetch+).
+        """
+        count = 0
+        page_token = None
+        while count < max_fetch:
+            params = {
+                "q": query,
+                "maxResults": min(500, max_fetch - count),
+                "fields": "messages(id),nextPageToken",
+            }
+            if page_token:
+                params["pageToken"] = page_token
+            try:
+                r = _req.get(base, headers=headers,
+                             params=params, timeout=15)
+                r.raise_for_status()
+                data = r.json()
+            except Exception:
+                break
+            batch = data.get("messages", [])
+            count += len(batch)
+            page_token = data.get("nextPageToken")
+            if not page_token or not batch:
+                break
+        return count
+
+    # Tier 1 — exact label counts where possible, query count for others
+    spam_count     = _label_count("SPAM")
+    trash_count    = _label_count("TRASH")
+    otp_count      = _query_count(
         "is:read older_than:30d "
         "subject:(OTP OR \"one time password\" OR \"verification code\" "
         "OR \"OTP is\" OR \"your code is\")"
     )
-    delivery_count = _count(
+    delivery_count = _query_count(
         "is:read older_than:30d "
         "subject:(delivered OR shipped OR \"out for delivery\" "
         "OR \"order confirmed\" OR \"order shipped\")"
     )
 
-    # Tier 2 — Quick wins, glance and confirm
-    old_promos_count  = _count("category:promotions older_than:2y is:read")
-    old_updates_count = _count("category:updates older_than:1y is:read")
-    old_social_count  = _count("category:social older_than:6m is:read")
+    # Tier 2 — label counts for category labels
+    old_promos_count  = _label_count("CATEGORY_PROMOTIONS")
+    old_updates_count = _label_count("CATEGORY_UPDATES")
+    old_social_count  = _label_count("CATEGORY_SOCIAL")
 
-    # Tier 3 — Review carefully
-    receipts_count = _count(
+    # Tier 3 — query counts
+    receipts_count    = _query_count(
         "subject:(invoice OR receipt OR booking OR ticket "
         "OR \"order summary\" OR \"payment confirmation\") "
         "has:attachment"
     )
-    sent_attach_count = _count("in:sent has:attachment")
+    sent_attach_count = _query_count("in:sent has:attachment")
+
+    def _fmt(count: int, max_fetch: int = 500) -> int:
+        return count  # raw count, UI adds "+" if needed
 
     return {
         "safe": [
@@ -463,6 +494,7 @@ def get_cleanup_tiers(credentials) -> dict:
                 "key":         "spam",
                 "label":       "Spam",
                 "count":       spam_count,
+                "capped":      False,
                 "query":       "label:spam",
                 "action":      "delete",
                 "description": "Spam emails. Safe to delete immediately.",
@@ -471,6 +503,7 @@ def get_cleanup_tiers(credentials) -> dict:
                 "key":         "trash",
                 "label":       "Trash",
                 "count":       trash_count,
+                "capped":      False,
                 "query":       "label:trash",
                 "action":      "delete",
                 "description": "Already in trash. Permanently delete now.",
@@ -479,6 +512,7 @@ def get_cleanup_tiers(credentials) -> dict:
                 "key":         "old_otps",
                 "label":       "Old OTPs & verification codes",
                 "count":       otp_count,
+                "capped":      otp_count >= 500,
                 "query":       "is:read older_than:30d subject:(OTP OR \"one time password\" OR \"verification code\" OR \"OTP is\" OR \"your code is\")",
                 "action":      "delete",
                 "description": "Read OTPs older than 30 days. Completely useless.",
@@ -487,6 +521,7 @@ def get_cleanup_tiers(credentials) -> dict:
                 "key":         "delivery_alerts",
                 "label":       "Old delivery alerts",
                 "count":       delivery_count,
+                "capped":      delivery_count >= 500,
                 "query":       "is:read older_than:30d subject:(delivered OR shipped OR \"out for delivery\" OR \"order confirmed\" OR \"order shipped\")",
                 "action":      "delete",
                 "description": "Read shipping notifications older than 30 days.",
@@ -495,27 +530,30 @@ def get_cleanup_tiers(credentials) -> dict:
         "quick_wins": [
             {
                 "key":         "old_promotions",
-                "label":       "Promotions older than 2 years",
+                "label":       "Promotions",
                 "count":       old_promos_count,
-                "query":       "category:promotions older_than:2y is:read",
+                "capped":      False,
+                "query":       "category:promotions is:read",
                 "action":      "preview",
-                "description": "Old read promotional emails. Almost certainly junk.",
+                "description": "Promotional emails. Almost certainly junk.",
             },
             {
                 "key":         "old_updates",
-                "label":       "Updates older than 1 year",
+                "label":       "Updates & newsletters",
                 "count":       old_updates_count,
-                "query":       "category:updates older_than:1y is:read",
+                "capped":      False,
+                "query":       "category:updates is:read",
                 "action":      "preview",
-                "description": "Old read notifications and newsletters.",
+                "description": "Read notifications and newsletters.",
             },
             {
                 "key":         "old_social",
-                "label":       "Social notifications older than 6 months",
+                "label":       "Social notifications",
                 "count":       old_social_count,
-                "query":       "category:social older_than:6m is:read",
+                "capped":      False,
+                "query":       "category:social is:read",
                 "action":      "preview",
-                "description": "Old LinkedIn, Twitter, Facebook notifications.",
+                "description": "LinkedIn, Twitter, Facebook notifications.",
             },
         ],
         "review_carefully": [
@@ -523,14 +561,16 @@ def get_cleanup_tiers(credentials) -> dict:
                 "key":         "receipts",
                 "label":       "Receipts & invoices with attachments",
                 "count":       receipts_count,
+                "capped":      receipts_count >= 500,
                 "query":       "subject:(invoice OR receipt OR booking OR ticket OR \"order summary\" OR \"payment confirmation\") has:attachment",
                 "action":      "review",
-                "description": "May contain tax documents, warranties, tickets. Review before deleting.",
+                "description": "May contain tax documents, warranties, tickets.",
             },
             {
                 "key":         "sent_attachments",
                 "label":       "Sent emails with attachments",
                 "count":       sent_attach_count,
+                "capped":      sent_attach_count >= 500,
                 "query":       "in:sent has:attachment",
                 "action":      "review",
                 "description": "Files you sent. Could be important documents.",
