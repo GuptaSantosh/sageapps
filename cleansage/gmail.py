@@ -136,6 +136,24 @@ def get_storage_quota(credentials) -> dict:
 # 2. Large attachments  (direct requests — bypasses httplib2)
 # ---------------------------------------------------------------------------
 
+
+def get_large_attachments_summary(credentials, min_size_mb=5) -> dict:
+    """Fast summary for dashboard — one API call only, no per-message fetch."""
+    service = _gmail_service(credentials)
+    response = service.users().messages().list(
+        userId='me',
+        q=f'has:attachment larger:{min_size_mb}m',
+        maxResults=1
+    ).execute()
+    count = response.get('resultSizeEstimate', 0)
+    # Rough estimate: average large attachment email ~8MB
+    estimated_gb = round((count * 8) / 1024, 2)
+    return {
+        'count': count,
+        'estimated_gb': estimated_gb,
+        'min_size_mb': min_size_mb,
+    }
+
 def get_large_attachments(credentials, min_size_mb=5, max_results=200):
     """Find emails with large attachments, paginated."""
     min_size_bytes = min_size_mb * 1024 * 1024
@@ -375,9 +393,9 @@ def run_full_scan(user_id: str, credentials) -> dict:
         credentials,
     )
     large_attach = _safe_call(
-        get_large_attachments,
-        [],
-        credentials, min_size_mb=5, max_results=200,
+        get_large_attachments_summary,
+        {"count": 0, "estimated_gb": 0.0, "min_size_mb": 5},
+        credentials, min_size_mb=5,
     )
     old_promos = _safe_call(
         get_old_promotions,
@@ -401,7 +419,6 @@ def run_full_scan(user_id: str, credentials) -> dict:
         breakdown=breakdown,
     )
 
-    cache_scan(user_id, breakdown, ttl=3600)
     return breakdown
 
 

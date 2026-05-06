@@ -12,7 +12,7 @@ from signal_profile import load_profile, save_profile, update_field
 from database import get_user, create_user, update_user, get_tips, get_latest_scan, get_deleted_items, link_telegram
 from tips import generate_tips, _detect_persona
 from gmail import run_full_scan, empty_trash, empty_spam, move_to_trash_bulk, fetch_messages_for_preview
-from cache import get_cached_scan, invalidate_cache
+from cache import get_cached_scan, cache_scan, invalidate_cache, patch_cache_after_delete
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
@@ -194,6 +194,7 @@ def api_scan():
     scan = get_cached_scan(user_id)
     if not scan:
         scan = run_full_scan(user_id, creds)
+        cache_scan(user_id, scan)
 
     latest = get_latest_scan(user_id)
     scanned_ago = _time_ago(latest["scanned_at"]) if latest else "never"
@@ -325,9 +326,18 @@ def action_execute():
         for mid in message_ids
     ]
 
-    result = move_to_trash_bulk(user_id, creds, message_items)
-    result["success"] = result["failed_count"] == 0 or result["success_count"] > 0
-    return jsonify(result)
+    import threading
+
+    # Patch cache immediately so dashboard is instant
+    patch_cache_after_delete(user_id, message_ids)
+
+    # Run actual trash in background — don't block the response
+    def do_trash():
+        move_to_trash_bulk(user_id, creds, message_items)
+
+    threading.Thread(target=do_trash, daemon=True).start()
+
+    return jsonify({"success": True, "success_count": len(message_ids), "failed_count": 0})
 
 
 @app.route("/action/history")
@@ -358,11 +368,15 @@ def review_large_attachments():
     if err:
         return err
 
-    scan = get_cached_scan(user_id)
-    if not scan:
-        scan = run_full_scan(user_id, creds)
-
-    items = scan.get("large_attachments", [])
+    from gmail import get_large_attachments
+    # Use cached full list if available, else fetch and cache
+    cache_key = f"{user_id}_large_attachments_full"
+    cached_full = get_cached_scan(cache_key)
+    if cached_full:
+        items = cached_full.get("items", [])
+    else:
+        items = get_large_attachments(creds, min_size_mb=5, max_results=200)
+        cache_scan(cache_key, {"items": items}, ttl=3600)
 
     # Normalise keys to match preview.html expectations
     normalised = []

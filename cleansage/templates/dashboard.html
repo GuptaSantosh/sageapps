@@ -224,7 +224,9 @@
   }
 
   function renderBreakdown(q, scan) {
-    const la  = scan.large_attachments || [];
+    const laRaw = scan.large_attachments || {};
+    const la = Array.isArray(laRaw) ? laRaw : null;
+    const laSummary = !Array.isArray(laRaw) ? laRaw : null;
     const bs  = scan.bulk_senders || [];
     const op  = scan.old_promotions || {};
     const ROW = 'flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900';
@@ -239,13 +241,14 @@
         </div>
         <div class="mt-2 ml-4 space-y-2">`;
 
-    if (la.length) {
-      const laMb = la.reduce((s, i) => s + i.size_mb, 0);
+    const laCount = laSummary ? laSummary.count : (la ? la.length : 0);
+    const laGb = laSummary ? laSummary.estimated_gb : (la ? parseFloat((la.reduce((s,i) => s + i.size_mb, 0)/1024).toFixed(2)) : 0);
+    if (laCount) {
       html += `<div class="flex items-center justify-between text-sm">
-        <span class="text-gray-500">└── Large attachments (${la.length})</span>
+        <span class="text-gray-500">└── Large attachments (${laCount})</span>
         <div class="flex items-center gap-3">
-          <span class="text-gray-400 text-xs">${(laMb/1024).toFixed(2)} GB</span>
-          <a href="/review/large-attachments" class="${LINK}">Review</a>
+          <span class="text-gray-400 text-xs">${laGb} GB</span>
+          <a href="/review/large-attachments" id="review-la-link" class="${LINK}" onclick="handleReviewClick(this)">Review</a>
         </div></div>`;
     }
     if (bs.length) {
@@ -327,6 +330,29 @@
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────────
+
+  function handleReviewClick(el) {
+    el.innerHTML = '⏳ Loading…';
+    el.style.pointerEvents = 'none';
+  }
   loadScan();
+
+  // Show refreshing banner if redirected from delete
+  if (new URLSearchParams(window.location.search).get('refreshing')) {
+    const banner = document.createElement('div');
+    banner.id = 'refresh-banner';
+    banner.className = 'fixed top-0 left-0 right-0 bg-sage-600 text-white text-center text-sm py-2 z-50';
+    banner.textContent = '⏳ Refreshing your storage data…';
+    document.body.prepend(banner);
+    // Remove banner once scan loads
+    const orig = window.renderScan || function(){};
+    const origRender = renderScan;
+    window.renderScan = function(scan, ago) {
+      origRender(scan, ago);
+      const b = document.getElementById('refresh-banner');
+      if (b) b.remove();
+      history.replaceState({}, '', '/dashboard');
+    }
+  }
 </script>
 {% endblock %}

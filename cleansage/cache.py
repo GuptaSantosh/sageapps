@@ -43,3 +43,37 @@ def invalidate_cache(user_id: str) -> None:
     path = _cache_path(user_id)
     if os.path.exists(path):
         os.remove(path)
+
+
+def patch_cache_after_delete(user_id: str, deleted_ids: list) -> None:
+    """Update cache after delete — works with both summary dict and array."""
+    cached = get_cached_scan(user_id)
+    if not cached:
+        return
+
+    la = cached.get("large_attachments", {})
+
+    # If it's a summary dict, just decrement the count
+    if isinstance(la, dict):
+        removed = len(deleted_ids)
+        old_count = la.get("count", 0)
+        la["count"] = max(0, old_count - removed)
+        freed_gb = round(la.get("estimated_gb", 0) * removed / max(1, old_count), 3)
+        la["estimated_gb"] = round(la.get("estimated_gb", 0) - freed_gb, 2)
+        cached["large_attachments"] = la
+        # Also update quota
+        if "quota" in cached:
+            cached["quota"]["used_gb"] = round(max(0, cached["quota"].get("used_gb", 0) - freed_gb), 4)
+            total = cached["quota"].get("total_gb", 15)
+            cached["quota"]["percent_used"] = round(cached["quota"]["used_gb"] / total * 100, 1)
+            cached["quota"]["gmail_gb"] = round(max(0, cached["quota"].get("gmail_gb", 0) - freed_gb), 4)
+
+    # If it's a full array (legacy), filter out deleted IDs
+    elif isinstance(la, list):
+        deleted_set = set(deleted_ids)
+        cached["large_attachments"] = [
+            item for item in la
+            if item.get("id") not in deleted_set
+        ]
+
+    cache_scan(user_id, cached)
