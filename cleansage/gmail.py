@@ -175,7 +175,7 @@ def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int =
                 tagged_stubs.append((mid, bucket))
 
     results = []
-    for msg_id, bucket in tagged_stubs:
+    for msg_id, _query_bucket in tagged_stubs:
         try:
             msg = _get(credentials, f"{GMAIL_BASE}/messages/{msg_id}", {
                 "format":          "metadata",
@@ -185,15 +185,31 @@ def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int =
         except Exception:
             continue
 
+        size_mb = round(msg.get("sizeEstimate", 0) / (1024 ** 2), 2)
+        if size_mb < threshold_mb:
+            continue
+
+        date    = _ts_to_date(msg.get("internalDate", "0"))
         headers = msg.get("payload", {}).get("headers", [])
+        sender  = _get_header(headers, "From")
+        subject = _get_header(headers, "Subject")
+
+        # Derive bucket from actual message date, not query label
+        if date < "2021-01-01":
+            date_bucket = "5y+"
+        elif date < "2023-01-01":
+            date_bucket = "2-5y"
+        else:
+            date_bucket = "recent"
+
         results.append({
-            "message_id":       msg["id"],
-            "sender":           _get_header(headers, "From"),
-            "subject":          _get_header(headers, "Subject"),
-            "date":             _ts_to_date(msg.get("internalDate", "0")),
-            "size_mb":          _bytes_to_mb(msg.get("sizeEstimate", 0)),
-            "attachment_names": [],
-            "date_bucket":      bucket,
+            "message_id":       msg_id,
+            "sender":           sender,
+            "subject":          subject,
+            "date":             date,
+            "size_mb":          size_mb,
+            "attachment_names": [],   # not available in metadata format
+            "date_bucket":      date_bucket,
         })
 
     results.sort(key=lambda x: x["size_mb"], reverse=True)
