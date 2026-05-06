@@ -136,84 +136,79 @@ def get_storage_quota(credentials) -> dict:
 # 2. Large attachments  (direct requests — bypasses httplib2)
 # ---------------------------------------------------------------------------
 
-def get_large_attachments(credentials, threshold_mb: int = 5, max_results: int = 50) -> list:
-    """
-    Runs 3 date-bucketed queries so each result carries a date_bucket label:
-      "5y+"    — before 2021/1/1
-      "2-5y"   — 2021/1/1 – 2023/1/1
-      "recent" — after 2023/1/1
-    Per-bucket cap: max_results // 3 IDs; combined + sorted by size desc.
-    Returns: [{message_id, sender, subject, date, size_mb, attachment_names, date_bucket}]
-    """
-    _ensure_fresh(credentials)
-    base   = f"has:attachment larger:{threshold_mb}m"
-    bucket_queries = [
-        (f"{base} before:2021/1/1",                      "5y+"),
-        (f"{base} after:2021/1/1 before:2023/1/1",       "2-5y"),
-        (f"{base} after:2023/1/1",                        "recent"),
-    ]
-    per_bucket = max(1, max_results // 3)
-
-    # Collect (stub_id, bucket) pairs across all three queries
-    tagged_stubs: list[tuple[str, str]] = []
-    seen: set[str] = set()
-
-    for query, bucket in bucket_queries:
-        try:
-            list_resp = _get(credentials, f"{GMAIL_BASE}/messages", {
-                "q":          query,
-                "maxResults": per_bucket,
-            })
-        except Exception:
-            continue
-
-        print(f"[DEBUG] bucket={bucket} got {len(list_resp.get('messages', []))} messages")
-        for stub in list_resp.get("messages", []):
-            mid = stub["id"]
-            if mid not in seen:
-                seen.add(mid)
-                tagged_stubs.append((mid, bucket))
-
+def get_large_attachments(self, min_size_mb=5):
+    """Find emails with large attachments. DEBUG VERSION."""
+    import sys
+    
+    min_size_bytes = min_size_mb * 1024 * 1024
     results = []
-    for msg_id, _query_bucket in tagged_stubs:
-        try:
-            msg = _get(credentials, f"{GMAIL_BASE}/messages/{msg_id}", {
-                "format":          "metadata",
-                "metadataHeaders": ["From", "Subject"],
-                "fields":          "id,internalDate,sizeEstimate,payload/headers",
-            })
-        except Exception:
-            continue
-
-        size_mb = round(msg.get("sizeEstimate", 0) / (1024 ** 2), 2)
-        if size_mb < threshold_mb:
-            continue
-
-        date    = _ts_to_date(msg.get("internalDate", "0"))
-        headers = msg.get("payload", {}).get("headers", [])
-        sender  = _get_header(headers, "From")
-        subject = _get_header(headers, "Subject")
-
-        # Derive bucket from actual message date, not query label
-        if date < "2021-01-01":
-            date_bucket = "5y+"
-        elif date < "2023-01-01":
-            date_bucket = "2-5y"
-        else:
-            date_bucket = "recent"
-
-        results.append({
-            "message_id":       msg_id,
-            "sender":           sender,
-            "subject":          subject,
-            "date":             date,
-            "size_mb":          size_mb,
-            "attachment_names": [],   # not available in metadata format
-            "date_bucket":      date_bucket,
-        })
-
-    results.sort(key=lambda x: x["size_mb"], reverse=True)
-    return results
+    
+    try:
+        print(f"[DEBUG] get_large_attachments: starting, min_size={min_size_mb}MB", flush=True)
+        
+        # Step 1: List call
+        params = {
+            'q': f'has:attachment larger:{min_size_mb}m',
+            'maxResults': 20
+        }
+        print(f"[DEBUG] Step 1: calling messages.list with params={params}", flush=True)
+        
+        response = self.service.users().messages().list(
+            userId='me', **params
+        ).execute()
+        
+        print(f"[DEBUG] Step 1 response keys: {list(response.keys())}", flush=True)
+        print(f"[DEBUG] resultSizeEstimate: {response.get('resultSizeEstimate')}", flush=True)
+        
+        messages = response.get('messages', [])
+        print(f"[DEBUG] messages count in response: {len(messages)}", flush=True)
+        
+        if not messages:
+            print("[DEBUG] EARLY EXIT: messages list is empty", flush=True)
+            return []
+        
+        # Step 2: Per-message detail fetch
+        for i, msg in enumerate(messages):
+            msg_id = msg.get('id')
+            print(f"[DEBUG] Step 2 [{i}]: fetching message id={msg_id}", flush=True)
+            
+            try:
+                detail = self.service.users().messages().get(
+                    userId='me',
+                    id=msg_id,
+                    format='metadata',
+                    metadataHeaders=['Subject', 'From', 'Date']
+                ).execute()
+                
+                size = detail.get('sizeEstimate', 0)
+                print(f"[DEBUG] [{i}] sizeEstimate={size}, threshold={min_size_bytes}", flush=True)
+                
+                if size >= min_size_bytes:
+                    headers = {h['name']: h['value'] 
+                               for h in detail.get('payload', {}).get('headers', [])}
+                    results.append({
+                        'id': msg_id,
+                        'subject': headers.get('Subject', '(no subject)'),
+                        'from': headers.get('From', ''),
+                        'date': headers.get('Date', ''),
+                        'size_mb': round(size / (1024 * 1024), 1)
+                    })
+                    print(f"[DEBUG] [{i}] ADDED to results. Total so far: {len(results)}", flush=True)
+                else:
+                    print(f"[DEBUG] [{i}] SKIPPED — size below threshold", flush=True)
+                    
+            except Exception as e:
+                print(f"[DEBUG] [{i}] ERROR on message {msg_id}: {type(e).__name__}: {e}", flush=True)
+                continue
+        
+        print(f"[DEBUG] DONE. Total results: {len(results)}", flush=True)
+        return results
+        
+    except Exception as e:
+        print(f"[DEBUG] OUTER ERROR: {type(e).__name__}: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return []
 
 
 # ---------------------------------------------------------------------------
