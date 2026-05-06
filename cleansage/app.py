@@ -202,6 +202,27 @@ def api_scan():
     return jsonify({"scan": scan, "scanned_ago": scanned_ago})
 
 
+@app.route("/api/bulk-senders")
+def api_bulk_senders():
+    if not session.get("authenticated"):
+        return jsonify({"error": "not authenticated"}), 401
+
+    user_id = session["user_id"]
+    creds, err = _require_creds(user_id)
+    if err:
+        return err
+
+    cache_key = f"{user_id}_bulk_senders"
+    cached = get_cached_scan(cache_key)
+    if not cached:
+        from gmail import get_bulk_senders
+        senders = get_bulk_senders(creds)
+        cached = {"bulk_senders": senders}
+        cache_scan(cache_key, cached, ttl=3600)
+
+    return jsonify(cached)
+
+
 @app.route("/action/empty-trash", methods=["POST"])
 def action_empty_trash():
     if not session.get("authenticated"):

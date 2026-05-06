@@ -329,6 +329,47 @@
     el('modal-confirm').disabled = false;
   }
 
+  // ── Bulk senders deferred load ────────────────────────────────────────────
+
+  async function loadBulkSenders() {
+    let data;
+    try {
+      const resp = await fetch('/api/bulk-senders');
+      if (!resp.ok) return;
+      data = await resp.json();
+    } catch (e) { return; }
+
+    const senders = data.bulk_senders || [];
+    if (!senders.length) return;
+
+    // Find the bulk senders row if already rendered (from main scan with empty bs)
+    // or inject it after the large-attachments row inside the Gmail breakdown.
+    const bsTotal = senders.reduce((s, i) => s + (i.estimated_size_mb || 0), 0);
+    const LINK = 'text-xs font-medium text-sage-600 dark:text-sage-500 hover:underline';
+
+    // Build a fresh row
+    const row = document.createElement('div');
+    row.id = 'bs-row';
+    row.className = 'flex items-center justify-between text-sm';
+    row.innerHTML = `
+      <span class="text-gray-500">└── Bulk sender mail (${senders.length} senders)</span>
+      <div class="flex items-center gap-3">
+        <span class="text-gray-400 text-xs">${(bsTotal/1024).toFixed(2)} GB</span>
+        <a href="/review/bulk-senders" class="${LINK}">Review</a>
+      </div>`;
+
+    // Replace existing bs row or insert after la row
+    const existing = document.getElementById('bs-row');
+    if (existing) {
+      existing.replaceWith(row);
+    } else {
+      const laLink = document.getElementById('review-la-link');
+      if (laLink) {
+        laLink.closest('.flex').after(row);
+      }
+    }
+  }
+
   // ── Boot ──────────────────────────────────────────────────────────────────
 
   function handleReviewClick(el) {
@@ -336,6 +377,7 @@
     el.style.pointerEvents = 'none';
   }
   loadScan();
+  setTimeout(loadBulkSenders, 500);
 
   // Show refreshing banner if redirected from delete
   if (new URLSearchParams(window.location.search).get('refreshing')) {

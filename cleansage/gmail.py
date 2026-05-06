@@ -205,47 +205,70 @@ def get_large_attachments(credentials, min_size_mb=5, max_results=200):
 
     return results
 
-def get_bulk_senders(credentials, min_count: int = 2) -> list:
+def get_bulk_senders(credentials, max_messages: int = 200) -> list:
     """
-    Single messages.list for category:promotions (maxResults=20    one metadata GET per result. Returns top 10 senders.
+    Fetches up to max_messages from category:promotions in pages of 100,
+    then uses a gevent Pool(20) to concurrently fetch metadata for each.
+    Aggregates by sender domain and returns top 15.
     """
+    from gevent.pool import Pool
+
     _ensure_fresh(credentials)
-    try:
-        list_resp = _get(credentials, f"{GMAIL_BASE}/messages", {
-            "q":          "category:promotions",
-            "maxResults": 20,
-        })
-    except Exception:
-        return []
 
-    stubs = list_resp.get("messages", [])
-    sender_data: dict[str, dict] = defaultdict(lambda: {"count": 0, "category": ""})
+    # Collect message stubs across pages (max 2 pages of 100)
+    stubs = []
+    page_token = None
+    per_page = 100
+    pages_needed = max(1, -(-max_messages // per_page))
 
-    for stub in stubs:
+    for _ in range(pages_needed):
+        if len(stubs) >= max_messages:
+            break
+        params = {"q": "category:promotions", "maxResults": per_page}
+        if page_token:
+            params["pageToken"] = page_token
+        try:
+            resp = _get(credentials, f"{GMAIL_BASE}/messages", params)
+        except Exception:
+            break
+        batch = resp.get("messages", [])
+        stubs.extend(batch)
+        page_token = resp.get("nextPageToken")
+        if not page_token:
+            break
+
+    stubs = stubs[:max_messages]
+
+    # Concurrent metadata fetches with gevent Pool
+    domain_counts: dict[str, int] = defaultdict(int)
+    lock = __import__("threading").Lock()
+
+    def fetch_one(stub):
         try:
             msg = _get(credentials, f"{GMAIL_BASE}/messages/{stub['id']}", {
                 "format":          "metadata",
                 "metadataHeaders": ["From"],
-                "fields":          "payload/headers",
             })
         except Exception:
-            continue
-
+            return
         sender = _get_header(msg.get("payload", {}).get("headers", []), "From")
         email  = _extract_sender_email(sender)
-        if not email:
-            continue
-        sender_data[email]["count"] += 1
-        if not sender_data[email]["category"]:
-            sender_data[email]["category"] = "promotions"
+        if not email or "@" not in email:
+            return
+        domain = email.split("@", 1)[1].lower()
+        with lock:
+            domain_counts[domain] += 1
+
+    pool = Pool(20)
+    pool.map(fetch_one, stubs)
 
     results = [
-        {"sender": s, "count": d["count"], "category": d["category"]}
-        for s, d in sender_data.items()
-        if d["count"] >= min_count
+        {"sender": d, "count": c, "category": "promotions", "estimated_size_mb": round(c * 0.08, 2)}
+        for d, c in domain_counts.items()
+        if c >= 2
     ]
     results.sort(key=lambda x: x["count"], reverse=True)
-    return results[:10]
+    return results[:15]
 
 
 # ---------------------------------------------------------------------------
