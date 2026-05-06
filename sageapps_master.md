@@ -39,9 +39,105 @@
 - **Droplet path:** /home/mailsage/mailsage/ — git connected to GitHub ✅
 - **Next:** Use daily for 5-7 days, tune prompt, first external user
 
+
+#### CleanSage — Current Debug State (May 6 2026)
+- Live at cleansage.sageapps.in ✅
+- OAuth working ✅
+- Onboarding working ✅  
+- Dashboard loads ✅
+- gevent + monkey.patch_all() applied ✅
+
+**BLOCKER:** get_large_attachments() returns 0 despite 
+201 large attachments confirmed via direct API call.
+
+Confirmed working:
+- Direct requests call to Gmail API returns 201 messages
+- get_storage_quota() works (91.97 GB used)
+- get_spam_and_trash_size() works
+- get_old_promotions() works
+
+Root cause suspected: fields parameter or _get() silently 
+swallowing errors in the per-message detail fetch loop.
+
+Debug added: print statements in list call — not yet confirmed 
+if debug output is visible.
+
+User ID for testing: 4a832543-47f7-44a7-be12-6b0e37c90f50
+Droplet: /home/cleansage/sageapps/cleansage/
+Port: 5002
+
+#### CleanSage
+
+#### CleanSage — Current State (May 6 2026)
+- Live at cleansage.sageapps.in ✅
+- OAuth working ✅
+- Dashboard loads with real data ✅
+- get_large_attachments() fixed — pagination working, 113 results ✅
+- get_storage_quota() fixed — 91.97 GB showing correctly ✅
+- run_full_scan() wired: quota + spam/trash + large_attachments + old_promotions ✅
+
+NEXT BLOCKER: /review/large-attachments route not found (404)
+— route needs to be added to app.py
+
+- **Status:** Live on DigitalOcean, single user testing (May 5 2026)
+- **URL:** cleansage.sageapps.in
+- **Value prop:** Gmail/Drive/Photos storage doctor — diagnose, 
+  preview, clean in browser. No app install.
+- **Price:** ₹199/mo or one-time ₹499 annual cleanup
+- **Architecture:** Flask web app (not Telegram-first). 
+  Telegram = companion alerts only.
+- **Droplet path:** /home/cleansage/sageapps/cleansage/ 
+  git-connected to GitHub ✅
+- **Port:** 5002
+- **Tech:** Flask, Google OAuth2 (Gmail+Drive+Photos scopes), 
+  Claude API, gunicorn, nginx, supervisorctl
+- **Files:** app.py, auth.py, gmail.py, drive.py, claude_api.py, 
+  database.py, cache.py, signal_profile.py, tips.py, 
+  telegram_bot.py, cron_scan.py
+- **Key UX rule:** Always preview before delete. 
+  Trash not permanent delete. Confirmation gate on every action.
+- **Onboarding:** 6-question wizard → persona detection → 
+  Smart Tips generated
+- **Personas:** media_flood / promo_hoarder / drive_dumper / 
+  even_spread
+- **Signal Profile:** signal_profile.py (renamed from signal.py 
+  to avoid Python built-in conflict)
+- **Deploy flow:** same as MailSage — push MacBook → 
+  pull droplet → supervisorctl restart cleansage
+
+### CleanSage Signature Features (differentiators)
+- Time-bucketed large attachment scan (5y+, 2-5y, recent)
+- Save-before-delete: move to Drive/Photos before trashing
+- Storage leak prevention via Smart Tips (not just cleanup)
+
+
+
+### Known issues / pending fixes
+- [ ] get_large_attachments() capped at 20 results — 
+      needs pagination for real accounts
+- [ ] get_bulk_senders() capped at 20 — needs smarter 
+      grouping by sender domain
+- [ ] run_full_scan() currently runs only 3 functions 
+      (quota + spam/trash + old promotions) — 
+      large attachments + bulk senders removed temporarily 
+      due to gunicorn timeout issue. Add back with async 
+      worker (gevent) or celery task queue
+- [ ] Drive scan (drive.py) not yet wired into dashboard
+- [ ] Photos scan not yet implemented
+- [ ] Telegram companion bot not yet set up
+- [ ] cron_scan.py weekly scan not yet activated
+- [ ] Delete engine (Session 6) built but not tested
+- [ ] Tips page (/tips) built but not validated end to end
+- [ ] Switch gunicorn to gevent workers for long-running 
+      API calls: add gevent to requirements.txt, 
+      change supervisorctl command to add -k gevent
+
+### supervisorctl
+- service name: cleansage — RUNNING
+
 ### 🟡 BUILD NEXT (in order)
 
-#### CleanSage (new — added Apr 28)
+#### CleanSage (new — added Apr 28), live on 5 may
 - **Problem:** Gmail storage full warnings, users frustrated but no time for 3-hour cleanup
 - **Value prop:** Find and batch-delete junk emails, large attachments, duplicate Drive files, WhatsApp forward photos — with preview before any delete
 - **Price:** ₹199/mo or one-time ₹499 annual cleanup
@@ -233,6 +329,19 @@ Tech: Python, Telegram bots, Claude API, supervisorctl, nginx, GitHub Pages for 
 Key constraint: Cost controls from day 1. Free tier = 3 API calls/day. Cache briefs. Signal Profile = user config.
 Santosh prefers: direct feedback, no filler, constraints over options, one focus at a time.
 ```
+### Claude Code vs Claude Project — when to use which
+
+- **Claude Project (this):** Architecture decisions, debugging diagnosis, 
+  feature planning, master doc updates, prompt tuning, copy/messaging
+- **Claude Code (terminal):** Actual file edits, git commits, 
+  supervisorctl restarts, any change that touches the droplet or repo
+
+### Claude Code prompt template
+When Claude Project gives you a fix, run Claude Code like this:
+"In [file path], [exact change description]. Make minimum change needed. 
+Show me the diff. Then run [restart command]."
+
+Never ask Claude Code to redesign — only execute what Claude Project scoped.
 
 ---
 
