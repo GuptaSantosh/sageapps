@@ -133,7 +133,111 @@ def get_storage_quota(credentials) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 2. Large attachments  (direct requests — bypasses httplib2)
+# 2. Storage breakdown by Gmail label
+# ---------------------------------------------------------------------------
+
+def get_storage_breakdown_by_label(credentials) -> list:
+    """
+    For each major Gmail label: get exact message count via labels.get,
+    sample 20 messages for avg size, extrapolate total GB.
+    ~10 API calls total. Returns list sorted by estimated_gb desc.
+    """
+    from google.auth.transport.requests import Request as _GoogleRequest
+    import requests as _req
+
+    credentials.refresh(_GoogleRequest())
+    token = credentials.token
+    headers = {"Authorization": f"Bearer {token}"}
+
+    LABELS = [
+        ("CATEGORY_PROMOTIONS", "Promotions"),
+        ("SENT",                "Sent Mail"),
+        ("CATEGORY_UPDATES",    "Updates"),
+        ("CATEGORY_SOCIAL",     "Social"),
+        ("CATEGORY_FORUMS",     "Forums"),
+        ("INBOX",               "Inbox"),
+        ("SPAM",                "Spam"),
+        ("TRASH",               "Trash"),
+    ]
+
+    results = []
+
+    for label_id, label_name in LABELS:
+        # Step 1: exact count from labels.get
+        try:
+            r = _req.get(
+                f"{GMAIL_BASE}/labels/{label_id}",
+                headers=headers,
+                timeout=10,
+            )
+            r.raise_for_status()
+            info = r.json()
+            total_count = info.get("messagesTotal", 0)
+        except Exception:
+            total_count = 0
+
+        if total_count == 0:
+            results.append({
+                "label_id":      label_id,
+                "label_name":    label_name,
+                "message_count": 0,
+                "avg_size_kb":   0.0,
+                "estimated_gb":  0.0,
+            })
+            continue
+
+        # Step 2: sample 20 messages for avg size
+        try:
+            list_r = _req.get(
+                f"{GMAIL_BASE}/messages",
+                headers=headers,
+                params={
+                    "labelIds":   label_id,
+                    "maxResults": 20,
+                    "fields":     "messages(id)",
+                },
+                timeout=10,
+            )
+            list_r.raise_for_status()
+            stubs = list_r.json().get("messages", [])
+        except Exception:
+            stubs = []
+
+        total_size = 0
+        sampled = 0
+        for stub in stubs:
+            try:
+                msg_r = _req.get(
+                    f"{GMAIL_BASE}/messages/{stub['id']}",
+                    headers=headers,
+                    params={"format": "minimal", "fields": "sizeEstimate"},
+                    timeout=10,
+                )
+                msg_r.raise_for_status()
+                total_size += msg_r.json().get("sizeEstimate", 0)
+                sampled += 1
+            except Exception:
+                continue
+
+        avg_size_bytes = (total_size / sampled) if sampled else 0
+        estimated_bytes = avg_size_bytes * total_count
+        estimated_gb = _bytes_to_gb(int(estimated_bytes))
+        avg_size_kb = round(avg_size_bytes / 1024, 1)
+
+        results.append({
+            "label_id":      label_id,
+            "label_name":    label_name,
+            "message_count": total_count,
+            "avg_size_kb":   avg_size_kb,
+            "estimated_gb":  estimated_gb,
+        })
+
+    results.sort(key=lambda x: x["estimated_gb"], reverse=True)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# 3. Large attachments  (direct requests — bypasses httplib2)
 # ---------------------------------------------------------------------------
 
 
@@ -466,6 +570,11 @@ def run_full_scan(user_id: str, credentials) -> dict:
         {"count": 0, "estimated_size_mb": 0.0, "sample_senders": []},
         credentials, days=90,
     )
+    label_breakdown = _safe_call(
+        get_storage_breakdown_by_label,
+        [],
+        credentials,
+    )
 
     breakdown = {
         "quota":             quota,
@@ -473,6 +582,7 @@ def run_full_scan(user_id: str, credentials) -> dict:
         "large_attachments": large_attach,
         "old_promotions":    old_promos,
         "bulk_senders":      [],
+        "label_breakdown":   label_breakdown,
     }
 
     save_scan_result(
