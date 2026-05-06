@@ -213,14 +213,19 @@ def api_bulk_senders():
         return err
 
     cache_key = f"{user_id}_bulk_senders"
-    cached = get_cached_scan(cache_key)
-    if not cached:
-        from gmail import get_bulk_senders
-        senders = get_bulk_senders(creds)
-        cached = {"bulk_senders": senders}
-        cache_scan(cache_key, cached, ttl=3600)
+    force = request.args.get("force") == "true"
+    if not force:
+        cached = get_cached_scan(cache_key)
+        if cached:
+            return jsonify({"bulk_senders": cached, "from_cache": True})
 
-    return jsonify(cached)
+    from gmail import get_bulk_senders
+    senders = get_bulk_senders(creds)
+    result = {"bulk_senders": senders}
+    if result:  # never cache empty result
+        cache_scan(cache_key, result, ttl=3600)
+
+    return jsonify(result)
 
 
 @app.route("/action/empty-trash", methods=["POST"])
