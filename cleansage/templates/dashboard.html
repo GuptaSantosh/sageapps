@@ -149,6 +149,7 @@
   // ── Render ───────────────────────────────────────────────────────────────
 
   function renderScan(scan, scannedAgo) {
+    window._lastScan = scan;
     const q = scan.quota || {};
     renderQuota(q);
     renderQuickWins(scan.spam_trash || {});
@@ -269,6 +270,30 @@
         </div></div>`;
     }
 
+    html += `
+        <div id="label-breakdown" style="display:none; margin-top:12px;">
+          <table class="table table-sm mb-0" style="font-size:0.85rem;">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="text-end">Emails</th>
+                <th class="text-end">% of Total</th>
+              </tr>
+            </thead>
+            <tbody id="label-breakdown-rows">
+              <tr><td colspan="3" class="text-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+          <p class="text-muted mt-2 mb-0" style="font-size:0.78rem;">
+            Total: <span id="label-total-count">—</span> emails ·
+            Counts overlap (emails can be in multiple categories)
+          </p>
+        </div>
+        <a href="#" id="toggle-label-breakdown"
+           style="font-size:0.82rem; margin-top:6px; display:inline-block;">
+          Show email breakdown ▾
+        </a>`;
+
     html += `</div></div>
       <div class="${ROW}">
         <span class="font-medium text-sm">💾 Google Drive</span>
@@ -368,6 +393,39 @@
         laLink.closest('.flex').after(row);
       }
     }
+  }
+
+  // ── Label breakdown ───────────────────────────────────────────────────────
+
+  document.addEventListener('click', function(e) {
+    const t = e.target.closest('#toggle-label-breakdown');
+    if (!t) return;
+    e.preventDefault();
+    const div = document.getElementById('label-breakdown');
+    if (!div) return;
+    const visible = div.style.display !== 'none';
+    div.style.display = visible ? 'none' : 'block';
+    t.textContent = visible ? 'Show email breakdown ▾' : 'Hide breakdown ▴';
+    if (!visible) renderLabelBreakdown();
+  });
+
+  function renderLabelBreakdown() {
+    const scan = window._lastScan;
+    if (!scan) return;
+    const lb = scan.label_breakdown;
+    if (!lb || !lb.breakdown) return;
+
+    document.getElementById('label-total-count').textContent =
+      lb.total_count.toLocaleString();
+
+    const rows = lb.breakdown.map(r => `
+      <tr>
+        <td>${r.label_name}</td>
+        <td class="text-end">${r.message_count.toLocaleString()}</td>
+        <td class="text-end">${r.pct_of_total}%</td>
+      </tr>
+    `).join('');
+    document.getElementById('label-breakdown-rows').innerHTML = rows;
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────────
