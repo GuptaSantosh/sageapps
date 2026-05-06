@@ -270,6 +270,7 @@
         </div></div>`;
     }
 
+    /* PARKED: label breakdown — repurpose later
     html += `
         <div id="label-breakdown" style="display:none; margin-top:12px;">
           <table class="table table-sm mb-0" style="font-size:0.85rem;">
@@ -293,6 +294,7 @@
            style="font-size:0.82rem; margin-top:6px; display:inline-block;">
           Show email breakdown ▾
         </a>`;
+    */
 
     html += `</div></div>
       <div class="${ROW}">
@@ -395,8 +397,8 @@
     }
   }
 
-  // ── Label breakdown ───────────────────────────────────────────────────────
-
+  // PARKED: label breakdown — repurpose later
+  /*
   document.addEventListener('click', function(e) {
     const t = e.target.closest('#toggle-label-breakdown');
     if (!t) return;
@@ -427,6 +429,7 @@
     `).join('');
     document.getElementById('label-breakdown-rows').innerHTML = rows;
   }
+  */
 
   // ── Boot ──────────────────────────────────────────────────────────────────
 
