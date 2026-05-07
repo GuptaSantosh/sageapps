@@ -272,7 +272,7 @@ def action_rescan():
     return redirect(url_for("dashboard"))
 
 
-@app.route("/action/preview-bulk", methods=["POST"])
+@app.route("/action/preview-bulk", methods=["GET", "POST"])
 def action_preview_bulk():
     if not session.get("authenticated"):
         return redirect(url_for("auth_login"))
@@ -282,9 +282,15 @@ def action_preview_bulk():
     if err:
         return err
 
-    data = request.get_json(silent=True) or {}
-    category = data.get("category", "")
-    sender   = data.get("sender")  # optional, used for bulk_sender
+    # Support both GET (query params) and POST (JSON body)
+    if request.method == "GET":
+        data = {}
+        category = request.args.get("category", "")
+        sender   = request.args.get("sender")
+    else:
+        data = request.get_json(silent=True) or {}
+        category = data.get("category", "")
+        sender   = data.get("sender")  # optional, used for bulk_sender
 
     VALID_CATEGORIES = {"large_attachments", "bulk_sender",
                         "old_promotions", "query"}

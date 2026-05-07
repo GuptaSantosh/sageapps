@@ -474,31 +474,13 @@
   }
 
   function handleTierAction(key, action, query) {
-    if (action === 'delete') {
-      if (key === 'spam') {
-        if (!confirm('Permanently delete all spam emails?')) return;
-        fetch('/action/empty-spam', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({confirm: true})
-        }).then(() => loadScan(true));
-      } else if (key === 'trash') {
-        if (!confirm('Permanently empty trash?')) return;
-        fetch('/action/empty-trash', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({confirm: true})
-        }).then(() => loadScan(true));
-      } else {
-        // Query-based delete — go to preview page first
-        window.location.href = '/action/preview-bulk?' +
-          new URLSearchParams({category: 'query', q: query, label: key});
-      }
-    } else {
-      // Preview or Review — go to preview page
-      window.location.href = '/action/preview-bulk?' +
-        new URLSearchParams({category: 'query', q: query, label: key});
-    }
+    // All actions go to preview first — no blind deletes from dashboard
+    const params = new URLSearchParams({
+      category: 'query',
+      q: query,
+      label: key
+    });
+    window.location.href = '/action/preview-bulk?' + params;
   }
 
   // ── Modal ─────────────────────────────────────────────────────────────────
