@@ -599,6 +599,46 @@
   }
   */
 
+  // ── Tier sizes deferred load ──────────────────────────────────────────────
+
+  function loadTierSizes() {
+    fetch('/api/tier-sizes')
+      .then(r => r.json())
+      .then(data => {
+        const sizes = data.tier_sizes || {};
+        // For each bucket key, find the count cell and append size range
+        document.querySelectorAll('.tier-row').forEach(row => {
+          const btn = row.querySelector('.tier-btn');
+          if (!btn) return;
+          // key is stored in onclick attribute
+          const onclick = btn.getAttribute('onclick') || '';
+          const match = onclick.match(/'([^']+)'/);
+          if (!match) return;
+          const key = match[1];
+          const sz = sizes[key];
+          if (!sz) return;
+          if (sz.size_mid_gb === 0) return;
+
+          const countEl = row.querySelector('.tier-row-count');
+          if (!countEl) return;
+          const low  = sz.size_low_gb;
+          const high = sz.size_high_gb;
+          function fmt(gb) {
+            return gb < 1
+              ? (gb * 1024).toFixed(0) + ' MB'
+              : gb.toFixed(1) + ' GB';
+          }
+          countEl.innerHTML +=
+            `<br><span style="font-size:0.75rem; color:#22c55e; font-weight:500;">
+            ~${fmt(low)}–${fmt(high)} freeable
+            </span>`;
+        });
+      })
+      .catch(() => {
+        // Silent fail — sizes are nice to have, not critical
+      });
+  }
+
   // ── Boot ──────────────────────────────────────────────────────────────────
 
   function handleReviewClick(el) {
@@ -607,6 +647,8 @@
   }
   loadScan();
   setTimeout(loadBulkSenders, 500);
+  // Phase 3: load size estimates — fires after bulk senders
+  setTimeout(loadTierSizes, 1000);
 
   // Show refreshing banner if redirected from delete
   if (new URLSearchParams(window.location.search).get('refreshing')) {

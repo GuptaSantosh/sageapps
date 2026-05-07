@@ -580,7 +580,194 @@ def get_cleanup_tiers(credentials) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 5. Spam and trash size  (direct requests)
+# 5. Tier size estimation
+# ---------------------------------------------------------------------------
+
+def get_oldest_email_date(credentials) -> "datetime":
+    """
+    Find account floor date via oldest email.
+    One API call. Falls back to 10 years ago if fails.
+    """
+    import requests as _req
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        r = _req.get(
+            f"{GMAIL_BASE}/messages",
+            headers={"Authorization": f"Bearer {credentials.token}"},
+            params={
+                "q": "in:anywhere",
+                "maxResults": 1,
+                "orderBy": "oldest",
+                "fields": "messages(id)",
+            },
+            timeout=10,
+        )
+        r.raise_for_status()
+        stubs = r.json().get("messages", [])
+        if not stubs:
+            raise ValueError("no messages")
+
+        msg_r = _req.get(
+            f"{GMAIL_BASE}/messages/{stubs[0]['id']}",
+            headers={"Authorization": f"Bearer {credentials.token}"},
+            params={"format": "minimal", "fields": "internalDate"},
+            timeout=10,
+        )
+        msg_r.raise_for_status()
+        ts_ms = int(msg_r.json().get("internalDate", 0))
+        return datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
+    except Exception:
+        # Fallback: 10 years ago
+        from datetime import datetime, timezone, timedelta
+        return datetime.now(timezone.utc) - timedelta(days=365 * 10)
+
+
+def get_tier_sizes(credentials, cleanup_tiers: dict) -> dict:
+    """
+    For each tier bucket, estimate total size using
+    time-stratified sampling across 4 equal periods.
+    15 samples per period, weighted average by period count.
+    Returns size_low_gb and size_high_gb per bucket key.
+    Cached 24h — call async after dashboard loads.
+    """
+    from google.auth.transport.requests import Request as _GoogleRequest
+    from gevent.pool import Pool
+    from datetime import datetime, timezone
+    import requests as _req
+
+    credentials.refresh(_GoogleRequest())
+    token = credentials.token
+    headers = {"Authorization": f"Bearer {token}"}
+    base = f"{GMAIL_BASE}/messages"
+
+    # Step 1: find account floor date
+    oldest = get_oldest_email_date(credentials)
+    now = datetime.now(timezone.utc)
+    total_days = (now - oldest).days
+
+    # Step 2: build 4 equal time periods
+    period_days = total_days // 4
+    periods = []
+    for i in range(4):
+        period_start = oldest.timestamp() + (i * period_days * 86400)
+        period_end   = oldest.timestamp() + ((i + 1) * period_days * 86400)
+        start_str = datetime.fromtimestamp(
+            period_start, tz=timezone.utc).strftime("%Y/%m/%d")
+        end_str   = datetime.fromtimestamp(
+            min(period_end, now.timestamp()), tz=timezone.utc
+        ).strftime("%Y/%m/%d")
+        periods.append((start_str, end_str))
+
+    def _fetch_size(stub_id: str) -> int:
+        try:
+            r = _req.get(
+                f"{GMAIL_BASE}/messages/{stub_id}",
+                headers=headers,
+                params={"format": "minimal", "fields": "sizeEstimate"},
+                timeout=15,
+            )
+            r.raise_for_status()
+            return r.json().get("sizeEstimate", 0)
+        except Exception:
+            return 0
+
+    def _sample_period(query: str, start: str, end: str,
+                       n: int = 15) -> "tuple[int, float]":
+        """
+        Returns (count_estimate, avg_size_bytes) for this
+        query + time period.
+        """
+        period_q = f"{query} after:{start} before:{end}"
+        try:
+            count_r = _req.get(
+                base, headers=headers,
+                params={
+                    "q": period_q,
+                    "maxResults": 1,
+                    "fields": "resultSizeEstimate",
+                },
+                timeout=10,
+            )
+            count_r.raise_for_status()
+            count = count_r.json().get("resultSizeEstimate", 0)
+            if count == 0:
+                return 0, 0.0
+
+            list_r = _req.get(
+                base, headers=headers,
+                params={
+                    "q": period_q,
+                    "maxResults": n,
+                    "fields": "messages(id)",
+                },
+                timeout=10,
+            )
+            list_r.raise_for_status()
+            stubs = list_r.json().get("messages", [])
+            if not stubs:
+                return count, 0.0
+
+            pool = Pool(15)
+            sizes = pool.map(_fetch_size, [s["id"] for s in stubs])
+            sizes = [s for s in sizes if s > 0]
+            avg = sum(sizes) / len(sizes) if sizes else 0.0
+            return count, avg
+
+        except Exception:
+            return 0, 0.0
+
+    # Step 3: flatten all tier buckets into one list
+    all_buckets = []
+    for tier_key in ("safe", "quick_wins", "review_carefully"):
+        for bucket in cleanup_tiers.get(tier_key, []):
+            all_buckets.append(bucket)
+
+    # Step 4: for each bucket, sample across 4 periods
+    result = {}
+    for bucket in all_buckets:
+        key   = bucket["key"]
+        query = bucket["query"]
+
+        period_counts = []
+        period_avgs   = []
+
+        for (start, end) in periods:
+            count, avg = _sample_period(query, start, end)
+            period_counts.append(count)
+            period_avgs.append(avg)
+
+        total_count = sum(period_counts)
+        if total_count == 0:
+            result[key] = {
+                "size_low_gb":  0.0,
+                "size_high_gb": 0.0,
+                "size_mid_gb":  0.0,
+            }
+            continue
+
+        weighted_avg = sum(
+            period_counts[i] * period_avgs[i]
+            for i in range(len(periods))
+        ) / total_count
+
+        actual_count    = bucket.get("count", total_count)
+        estimated_bytes = weighted_avg * actual_count
+        mid_gb  = _bytes_to_gb(int(estimated_bytes))
+        low_gb  = round(mid_gb * 0.7, 2)
+        high_gb = round(mid_gb * 1.3, 2)
+
+        result[key] = {
+            "size_low_gb":  low_gb,
+            "size_high_gb": high_gb,
+            "size_mid_gb":  mid_gb,
+        }
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 6. Spam and trash size  (direct requests)
 # ---------------------------------------------------------------------------
 
 def get_spam_and_trash_size(credentials) -> dict:

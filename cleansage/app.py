@@ -228,6 +228,49 @@ def api_bulk_senders():
     return jsonify(result)
 
 
+@app.route("/api/tier-sizes")
+def api_tier_sizes():
+    if not session.get("authenticated"):
+        return jsonify({"error": "not authenticated"}), 401
+
+    user_id = session["user_id"]
+    creds, err = _require_creds(user_id)
+    if err:
+        return err
+
+    # Check 24h cache
+    cache_key = f"{user_id}_tier_sizes"
+    force = request.args.get("force") == "true"
+    if not force:
+        cached = get_cached_scan(cache_key)
+        if cached:
+            return jsonify({"tier_sizes": cached, "from_cache": True})
+
+    # Need cleanup_tiers from last scan to get queries
+    latest_scan = get_latest_scan(user_id)
+    if not latest_scan:
+        return jsonify({"error": "no scan found"}), 404
+
+    import json
+    breakdown = latest_scan.get("breakdown", {})
+    if isinstance(breakdown, str):
+        breakdown = json.loads(breakdown)
+    cleanup_tiers = breakdown.get("cleanup_tiers", {})
+    if not cleanup_tiers:
+        return jsonify({"error": "no cleanup tiers in scan"}), 404
+
+    from gmail import get_tier_sizes
+    try:
+        result = get_tier_sizes(creds, cleanup_tiers)
+    except Exception as e:
+        return jsonify({"error": str(e), "tier_sizes": {}}), 500
+
+    if result:
+        cache_scan(cache_key, result, ttl=86400)  # 24h cache
+
+    return jsonify({"tier_sizes": result, "from_cache": False})
+
+
 @app.route("/action/empty-trash", methods=["POST"])
 def action_empty_trash():
     if not session.get("authenticated"):
