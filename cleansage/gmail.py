@@ -811,8 +811,17 @@ def fetch_messages_for_preview(
     sender: str | None = None,
     max_results: int = 200,
 ) -> list[dict]:
-    service = _gmail_service(credentials)
+    from google.auth.transport.requests import Request as _GoogleRequest
+    from gevent.pool import Pool
+    import requests as _req
 
+    # Force refresh once up front
+    credentials.refresh(_GoogleRequest())
+    token = credentials.token
+    headers = {"Authorization": f"Bearer {token}"}
+    base = f"{GMAIL_BASE}/messages"
+
+    # Build query
     if category == "large_attachments":
         query = "has:attachment larger:5m"
     elif category == "bulk_sender":
@@ -822,38 +831,79 @@ def fetch_messages_for_preview(
     elif category == "old_promotions":
         query = "category:promotions older_than:90d"
     elif category == "query":
-        if not sender:  # sender param reused as raw query string
+        if not sender:
             return []
         query = sender
     else:
         return []
 
-    stubs = _list_messages_all(service, query, max_results)
-    results = []
-    for stub in stubs:
+    # Step 1: paginate stubs
+    stubs = []
+    page_token = None
+    while len(stubs) < max_results:
+        params = {
+            "q": query,
+            "maxResults": min(100, max_results - len(stubs)),
+            "fields": "messages(id),nextPageToken",
+        }
+        if page_token:
+            params["pageToken"] = page_token
         try:
-            msg = service.users().messages().get(
-                userId="me",
-                id=stub["id"],
-                format="metadata",
-                metadataHeaders=["From", "Subject"],
-                fields="id,internalDate,sizeEstimate,payload/headers",
-            ).execute()
-        except HttpError:
-            continue
+            r = _req.get(base, headers=headers,
+                         params=params, timeout=15)
+            r.raise_for_status()
+            data = r.json()
+        except Exception:
+            break
+        batch = data.get("messages", [])
+        if not batch:
+            break
+        stubs.extend(batch)
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
 
-        headers = msg.get("payload", {}).get("headers", [])
-        results.append({
-            "message_id":       msg["id"],
-            "sender":           _get_header(headers, "From"),
-            "subject":          _get_header(headers, "Subject"),
+    if not stubs:
+        return []
+
+    # Step 2: fetch metadata concurrently
+    def fetch_one(stub):
+        try:
+            r = _req.get(
+                f"{GMAIL_BASE}/messages/{stub['id']}",
+                headers=headers,
+                params={
+                    "format": "metadata",
+                    "metadataHeaders": ["From", "Subject"],
+                    "fields": "id,internalDate,sizeEstimate,payload/headers",
+                },
+                timeout=15,
+            )
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            return None
+
+    pool = Pool(20)
+    results = pool.map(fetch_one, stubs)
+
+    # Step 3: build result list
+    items = []
+    for msg in results:
+        if not msg:
+            continue
+        headers_list = msg.get("payload", {}).get("headers", [])
+        items.append({
+            "message_id":       msg.get("id", ""),
+            "sender":           _get_header(headers_list, "From"),
+            "subject":          _get_header(headers_list, "Subject"),
             "date":             _ts_to_date(msg.get("internalDate", "0")),
             "size_mb":          _bytes_to_mb(msg.get("sizeEstimate", 0)),
             "attachment_names": [],
         })
 
-    results.sort(key=lambda x: x["size_mb"], reverse=True)
-    return results
+    items.sort(key=lambda x: x["size_mb"], reverse=True)
+    return items
 
 
 # ---------------------------------------------------------------------------
