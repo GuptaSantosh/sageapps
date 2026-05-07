@@ -441,6 +441,7 @@
       const [text, cls] = labels[item.action] || ['View', 'review'];
       const disabled = item.count === 0 ? 'disabled' : '';
       return `<button class="tier-btn ${cls}" ${disabled}
+        data-key="${item.key}"
         onclick="handleTierAction('${item.key}', '${item.action}',
         ${JSON.stringify(item.query).replace(/"/g, '&quot;')})">
         ${text}
@@ -606,37 +607,35 @@
       .then(r => r.json())
       .then(data => {
         const sizes = data.tier_sizes || {};
-        // For each bucket key, find the count cell and append size range
-        document.querySelectorAll('.tier-row').forEach(row => {
-          const btn = row.querySelector('.tier-btn');
-          if (!btn) return;
-          // key is stored in onclick attribute
-          const onclick = btn.getAttribute('onclick') || '';
-          const match = onclick.match(/'([^']+)'/);
-          if (!match) return;
-          const key = match[1];
-          const sz = sizes[key];
-          if (!sz) return;
-          if (sz.size_mid_gb === 0) return;
+        if (!Object.keys(sizes).length) return;
 
+        // Add size shimmer placeholder to all tier rows first
+        document.querySelectorAll('.tier-row').forEach(row => {
           const countEl = row.querySelector('.tier-row-count');
           if (!countEl) return;
-          const low  = sz.size_low_gb;
-          const high = sz.size_high_gb;
+          // Find key from data attribute we'll set on button
+          const btn = row.querySelector('.tier-btn[data-key]');
+          if (!btn) return;
+          const key = btn.dataset.key;
+          const sz = sizes[key];
+          if (!sz || sz.size_mid_gb === 0) return;
+
           function fmt(gb) {
+            if (gb === 0) return '0 MB';
             return gb < 1
-              ? (gb * 1024).toFixed(0) + ' MB'
+              ? Math.round(gb * 1024) + ' MB'
               : gb.toFixed(1) + ' GB';
           }
+          const low  = fmt(sz.size_low_gb);
+          const high = fmt(sz.size_high_gb);
           countEl.innerHTML +=
-            `<br><span style="font-size:0.75rem; color:#22c55e; font-weight:500;">
-            ~${fmt(low)}–${fmt(high)} freeable
+            `<br><span style="font-size:0.75rem;
+            color:#22c55e; font-weight:500;">
+            ~${low}–${high} freeable
             </span>`;
         });
       })
-      .catch(() => {
-        // Silent fail — sizes are nice to have, not critical
-      });
+      .catch(() => {});
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────────
