@@ -821,6 +821,10 @@ def fetch_messages_for_preview(
         query = f"from:{sender}"
     elif category == "old_promotions":
         query = "category:promotions older_than:90d"
+    elif category == "query":
+        if not sender:  # sender param reused as raw query string
+            return []
+        query = sender
     else:
         return []
 

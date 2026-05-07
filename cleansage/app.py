@@ -286,11 +286,23 @@ def action_preview_bulk():
     category = data.get("category", "")
     sender   = data.get("sender")  # optional, used for bulk_sender
 
-    VALID_CATEGORIES = {"large_attachments", "bulk_sender", "old_promotions"}
+    VALID_CATEGORIES = {"large_attachments", "bulk_sender",
+                        "old_promotions", "query"}
     if category not in VALID_CATEGORIES:
         return jsonify({"success": False, "error": "invalid category"}), 400
 
-    items = fetch_messages_for_preview(creds, category, sender=sender)
+    # For query-based categories, q param is the raw Gmail query
+    if category == "query":
+        raw_query = request.args.get("q") or data.get("q", "")
+        if not raw_query:
+            return jsonify({"success": False, "error": "q required"}), 400
+        items = fetch_messages_for_preview(
+            creds, category, sender=raw_query, max_results=200
+        )
+    else:
+        items = fetch_messages_for_preview(
+            creds, category, sender=sender, max_results=200
+        )
 
     PAGE_SIZE = 20
     page = max(1, int(request.args.get("page", 1)))
@@ -305,6 +317,7 @@ def action_preview_bulk():
         "large_attachments": "Large attachments",
         "bulk_sender":       f"Mail from {sender}" if sender else "Bulk sender mail",
         "old_promotions":    "Old promotional emails (90+ days)",
+        "query":             data.get("label") or request.args.get("label") or "Emails",
     }
 
     return render_template(

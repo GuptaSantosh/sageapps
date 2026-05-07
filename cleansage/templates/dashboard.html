@@ -490,12 +490,14 @@
           body: JSON.stringify({confirm: true})
         }).then(() => loadScan(true));
       } else {
+        // Query-based delete — go to preview page first
         window.location.href = '/action/preview-bulk?' +
-          new URLSearchParams({category: 'query', q: query});
+          new URLSearchParams({category: 'query', q: query, label: key});
       }
     } else {
+      // Preview or Review — go to preview page
       window.location.href = '/action/preview-bulk?' +
-        new URLSearchParams({category: 'query', q: query});
+        new URLSearchParams({category: 'query', q: query, label: key});
     }
   }
 
