@@ -583,44 +583,20 @@ def get_cleanup_tiers(credentials) -> dict:
 # 5. Tier size estimation
 # ---------------------------------------------------------------------------
 
-def get_oldest_email_date(credentials) -> "datetime":
+def _build_time_periods() -> list:
     """
-    Find account floor date via oldest email.
-    One API call. Falls back to 10 years ago if fails.
+    Returns 4 fixed time periods covering last 15 years.
+    No API call needed. Works for any account.
     """
-    import requests as _req
-    from datetime import datetime, timezone, timedelta
-
-    try:
-        r = _req.get(
-            f"{GMAIL_BASE}/messages",
-            headers={"Authorization": f"Bearer {credentials.token}"},
-            params={
-                "q": "in:anywhere",
-                "maxResults": 1,
-                "orderBy": "oldest",
-                "fields": "messages(id)",
-            },
-            timeout=10,
-        )
-        r.raise_for_status()
-        stubs = r.json().get("messages", [])
-        if not stubs:
-            raise ValueError("no messages")
-
-        msg_r = _req.get(
-            f"{GMAIL_BASE}/messages/{stubs[0]['id']}",
-            headers={"Authorization": f"Bearer {credentials.token}"},
-            params={"format": "minimal", "fields": "internalDate"},
-            timeout=10,
-        )
-        msg_r.raise_for_status()
-        ts_ms = int(msg_r.json().get("internalDate", 0))
-        return datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
-    except Exception:
-        # Fallback: 10 years ago
-        from datetime import datetime, timezone, timedelta
-        return datetime.now(timezone.utc) - timedelta(days=365 * 10)
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    y = now.year
+    return [
+        (f"{y - 15}/01/01", f"{y - 10}/01/01"),
+        (f"{y - 10}/01/01", f"{y - 5}/01/01"),
+        (f"{y - 5}/01/01",  f"{y - 2}/01/01"),
+        (f"{y - 2}/01/01",  now.strftime("%Y/%m/%d")),
+    ]
 
 
 def get_tier_sizes(credentials, cleanup_tiers: dict) -> dict:
@@ -633,7 +609,6 @@ def get_tier_sizes(credentials, cleanup_tiers: dict) -> dict:
     """
     from google.auth.transport.requests import Request as _GoogleRequest
     from gevent.pool import Pool
-    from datetime import datetime, timezone
     import requests as _req
 
     credentials.refresh(_GoogleRequest())
@@ -641,23 +616,8 @@ def get_tier_sizes(credentials, cleanup_tiers: dict) -> dict:
     headers = {"Authorization": f"Bearer {token}"}
     base = f"{GMAIL_BASE}/messages"
 
-    # Step 1: find account floor date
-    oldest = get_oldest_email_date(credentials)
-    now = datetime.now(timezone.utc)
-    total_days = (now - oldest).days
-
-    # Step 2: build 4 equal time periods
-    period_days = total_days // 4
-    periods = []
-    for i in range(4):
-        period_start = oldest.timestamp() + (i * period_days * 86400)
-        period_end   = oldest.timestamp() + ((i + 1) * period_days * 86400)
-        start_str = datetime.fromtimestamp(
-            period_start, tz=timezone.utc).strftime("%Y/%m/%d")
-        end_str   = datetime.fromtimestamp(
-            min(period_end, now.timestamp()), tz=timezone.utc
-        ).strftime("%Y/%m/%d")
-        periods.append((start_str, end_str))
+    # Build 4 fixed time periods — no API call needed
+    periods = _build_time_periods()
 
     def _fetch_size(stub_id: str) -> int:
         try:
