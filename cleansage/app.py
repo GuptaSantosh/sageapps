@@ -303,11 +303,11 @@ def action_preview_bulk():
         if not raw_query:
             return jsonify({"success": False, "error": "q required"}), 400
         items = fetch_messages_for_preview(
-            creds, category, sender=raw_query, max_results=200
+            creds, category, sender=raw_query, max_results=50
         )
     else:
         items = fetch_messages_for_preview(
-            creds, category, sender=sender, max_results=200
+            creds, category, sender=sender, max_results=50
         )
 
     PAGE_SIZE = 20
@@ -420,7 +420,7 @@ def review_large_attachments():
     if cached_full:
         items = cached_full.get("items", [])
     else:
-        items = get_large_attachments(creds, min_size_mb=5, max_results=200)
+        items = get_large_attachments(creds, min_size_mb=5, max_results=50)
         cache_scan(cache_key, {"items": items}, ttl=3600)
 
     # Normalise keys to match preview.html expectations
