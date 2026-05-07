@@ -555,6 +555,24 @@ def get_cleanup_tiers(credentials) -> dict:
                 "action":      "preview",
                 "description": "LinkedIn, Twitter, Facebook notifications.",
             },
+            {
+                "key":         "old_inbox",
+                "label":       "Read inbox emails older than 2 years",
+                "count":       _query_count("in:inbox is:read older_than:2y"),
+                "capped":      False,
+                "query":       "in:inbox is:read older_than:2y",
+                "action":      "preview",
+                "description": "Read emails sitting in inbox for 2+ years. Likely the biggest space hog.",
+            },
+            {
+                "key":         "old_sent",
+                "label":       "Sent emails older than 1 year",
+                "count":       _label_count("SENT"),
+                "capped":      False,
+                "query":       "in:sent older_than:1y",
+                "action":      "preview",
+                "description": "Old sent emails accumulate silently. Safe to clean up.",
+            },
         ],
         "review_carefully": [
             {
