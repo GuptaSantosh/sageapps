@@ -128,7 +128,7 @@ def get_storage_quota(credentials) -> dict:
         "percent_used": pct,
         "gmail_gb":     gmail_gb,
         "drive_gb":     drive_gb,
-        "photos_gb":    0.0,
+        "photos_gb":    round(max(0.0, used_gb - gmail_gb - drive_gb), 4),
     }
 
 
