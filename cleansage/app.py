@@ -87,6 +87,8 @@ def auth_callback():
         return redirect(url_for("index"))
 
     user_id = handle_callback(code, state)
+    # Force token refresh to pick up any new scopes
+    creds = get_credentials(user_id)
     session["user_id"] = user_id
     session["authenticated"] = True
 
