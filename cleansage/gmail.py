@@ -398,6 +398,134 @@ def get_bulk_senders(credentials, max_messages: int = 200) -> list:
     return output[:15]
 
 
+def get_top_senders_by_size(credentials, max_messages: int = 500) -> list:
+    """
+    Fetch max_messages from in:anywhere, get actual sizeEstimate
+    per message, group by sender domain, sum real sizes.
+    No extrapolation — actual measured sizes from sample.
+    Returns top 20 domains by total_size_mb, with count and
+    projected_gb extrapolated from sample ratio.
+    """
+    from google.auth.transport.requests import Request as _GoogleRequest
+    from gevent.pool import Pool
+    import requests as _req
+
+    credentials.refresh(_GoogleRequest())
+    token = credentials.token
+    headers = {"Authorization": f"Bearer {token}"}
+    base = f"{GMAIL_BASE}/messages"
+
+    # Step 1: get total message count from profile
+    try:
+        profile = _req.get(
+            "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+            headers=headers, timeout=10,
+        )
+        total_messages = profile.json().get("messagesTotal", 1)
+    except Exception:
+        total_messages = 150000
+
+    # Step 2: paginate stubs from in:anywhere — all mail
+    stubs = []
+    page_token = None
+    while len(stubs) < max_messages:
+        params = {
+            "q": "in:anywhere",
+            "maxResults": min(100, max_messages - len(stubs)),
+            "fields": "messages(id),nextPageToken",
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        try:
+            r = _req.get(base, headers=headers,
+                         params=params, timeout=15)
+            r.raise_for_status()
+            data = r.json()
+        except Exception:
+            break
+        batch = data.get("messages", [])
+        if not batch:
+            break
+        stubs.extend(batch)
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+
+    if not stubs:
+        return []
+
+    # Step 3: fetch From + sizeEstimate concurrently
+    def fetch_one(stub):
+        try:
+            r = _req.get(
+                f"{GMAIL_BASE}/messages/{stub['id']}",
+                headers=headers,
+                params={
+                    "format": "metadata",
+                    "metadataHeaders": ["From"],
+                    "fields": "sizeEstimate,payload/headers",
+                },
+                timeout=15,
+            )
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            return None
+
+    pool = Pool(20)
+    results = pool.map(fetch_one, stubs)
+
+    # Step 4: group by domain — sum ACTUAL sizes
+    domain_data: dict = defaultdict(lambda: {
+        "total_size": 0, "count": 0, "top_senders": set()
+    })
+
+    total_sample_size = 0
+    for msg in results:
+        if not msg:
+            continue
+        sender = _get_header(
+            msg.get("payload", {}).get("headers", []), "From"
+        )
+        if not sender:
+            continue
+        domain = _extract_sender_domain(sender)
+        email  = _extract_sender_email(sender)
+        size   = msg.get("sizeEstimate", 0)
+
+        domain_data[domain]["total_size"] += size
+        domain_data[domain]["count"] += 1
+        domain_data[domain]["top_senders"].add(email)
+        total_sample_size += size
+
+    # Step 5: extrapolate to full mailbox
+    # sample_ratio = messages sampled / total messages
+    sampled = len([r for r in results if r])
+    sample_ratio = sampled / total_messages if total_messages > 0 else 1
+
+    output = []
+    for domain, d in domain_data.items():
+        # Extrapolate: if domain is X% of sample,
+        # it's ~X% of total mailbox
+        domain_pct = d["count"] / sampled if sampled > 0 else 0
+        projected_count = int(domain_pct * total_messages)
+        avg_size = d["total_size"] / d["count"] if d["count"] > 0 else 0
+        projected_bytes = avg_size * projected_count
+
+        output.append({
+            "domain":          domain,
+            "sample_count":    d["count"],
+            "projected_count": projected_count,
+            "sample_size_mb":  _bytes_to_mb(d["total_size"]),
+            "projected_gb":    _bytes_to_gb(int(projected_bytes)),
+            "avg_size_kb":     round(avg_size / 1024, 1),
+            "top_senders":     list(d["top_senders"])[:2],
+        })
+
+    output.sort(key=lambda x: x["projected_gb"], reverse=True)
+    return output[:20]
+
+
 # ---------------------------------------------------------------------------
 # 4. Cleanup tiers
 # ---------------------------------------------------------------------------
@@ -959,15 +1087,21 @@ def run_full_scan(user_id: str, credentials) -> dict:
         {"safe": [], "quick_wins": [], "review_carefully": []},
         credentials,
     )
+    top_senders_by_size = _safe_call(
+        get_top_senders_by_size,
+        [],
+        credentials,
+    )
 
     breakdown = {
-        "quota":             quota,
-        "spam_trash":        spam_trash,
-        "large_attachments": large_attach,
-        "old_promotions":    old_promos,
-        "bulk_senders":      [],
-        "label_breakdown":   label_breakdown,
-        "cleanup_tiers":     cleanup_tiers,
+        "quota":               quota,
+        "spam_trash":          spam_trash,
+        "large_attachments":   large_attach,
+        "old_promotions":      old_promos,
+        "bulk_senders":        [],
+        "label_breakdown":     label_breakdown,
+        "cleanup_tiers":       cleanup_tiers,
+        "top_senders_by_size": top_senders_by_size,
     }
 
     save_scan_result(
