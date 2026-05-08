@@ -431,32 +431,80 @@ def get_cleanup_tiers(credentials) -> dict:
 
     def _query_count(query: str, max_fetch: int = 500) -> int:
         """
-        Paginate up to max_fetch stubs to get real count.
-        Returns actual count if under max_fetch, else max_fetch (meaning max_fetch+).
+        For max_fetch <= 500: paginate for real count.
+        For max_fetch > 500: use resultSizeEstimate × correction.
+        Returns real count or estimate.
         """
-        count = 0
-        page_token = None
-        while count < max_fetch:
-            params = {
-                "q": query,
-                "maxResults": min(500, max_fetch - count),
-                "fields": "messages(id),nextPageToken",
-            }
-            if page_token:
-                params["pageToken"] = page_token
+        if max_fetch > 500:
+            # Use multiple resultSizeEstimate calls across time
+            # periods and sum them for better estimate
             try:
-                r = _req.get(base, headers=headers,
-                             params=params, timeout=15)
-                r.raise_for_status()
-                data = r.json()
+                total = 0
+                for period_q in [
+                    f"{query} older_than:5y",
+                    f"{query} newer_than:5y older_than:2y",
+                    f"{query} newer_than:2y",
+                ]:
+                    r = _req.get(
+                        base, headers=headers,
+                        params={"q": period_q, "maxResults": 1,
+                                "fields": "resultSizeEstimate"},
+                        timeout=10,
+                    )
+                    r.raise_for_status()
+                    est = r.json().get("resultSizeEstimate", 0)
+                    # resultSizeEstimate caps at 201 — if capped,
+                    # paginate this sub-period to get better count
+                    if est >= 200:
+                        sub_count = 0
+                        page_token = None
+                        while sub_count < 2000:
+                            params = {
+                                "q": period_q,
+                                "maxResults": 500,
+                                "fields": "messages(id),nextPageToken",
+                            }
+                            if page_token:
+                                params["pageToken"] = page_token
+                            r2 = _req.get(base, headers=headers,
+                                         params=params, timeout=15)
+                            r2.raise_for_status()
+                            data = r2.json()
+                            batch = data.get("messages", [])
+                            sub_count += len(batch)
+                            page_token = data.get("nextPageToken")
+                            if not page_token or not batch:
+                                break
+                        total += sub_count
+                    else:
+                        total += est
+                return total
             except Exception:
-                break
-            batch = data.get("messages", [])
-            count += len(batch)
-            page_token = data.get("nextPageToken")
-            if not page_token or not batch:
-                break
-        return count
+                return 0
+        else:
+            count = 0
+            page_token = None
+            while count < max_fetch:
+                params = {
+                    "q": query,
+                    "maxResults": min(500, max_fetch - count),
+                    "fields": "messages(id),nextPageToken",
+                }
+                if page_token:
+                    params["pageToken"] = page_token
+                try:
+                    r = _req.get(base, headers=headers,
+                                 params=params, timeout=15)
+                    r.raise_for_status()
+                    data = r.json()
+                except Exception:
+                    break
+                batch = data.get("messages", [])
+                count += len(batch)
+                page_token = data.get("nextPageToken")
+                if not page_token or not batch:
+                    break
+            return count
 
     # Tier 1 — exact label counts where possible, query count for others
     spam_count     = _label_count("SPAM")
@@ -558,11 +606,14 @@ def get_cleanup_tiers(credentials) -> dict:
             {
                 "key":         "old_inbox",
                 "label":       "Read inbox emails older than 2 years",
-                "count":       _query_count("in:inbox is:read older_than:2y"),
+                "count":       _query_count(
+                    "in:inbox is:read older_than:2y",
+                    max_fetch=50000
+                ),
                 "capped":      False,
                 "query":       "in:inbox is:read older_than:2y",
                 "action":      "preview",
-                "description": "Read emails sitting in inbox for 2+ years. Likely the biggest space hog.",
+                "description": "Read emails sitting in inbox for 2+ years. Likely the biggest storage hog.",
             },
             {
                 "key":         "old_sent",

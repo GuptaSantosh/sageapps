@@ -52,6 +52,11 @@
     <section id="cleanup-tiers-section" class="hidden">
       <h2 class="text-base font-semibold mb-3 text-gray-700 dark:text-gray-300">Cleanup Opportunities</h2>
 
+      <div id="cleanup-total-banner"
+           style="display:none; font-size:0.85rem;
+           color:#6b7280; margin-bottom:12px;">
+      </div>
+
       <div class="tier-block" id="tier-safe">
         <div class="tier-header tier-safe-header">
           <span class="tier-dot green"></span>
@@ -469,6 +474,21 @@
       `).join('');
     }
 
+    // Calculate and show total freeable estimate
+    const allItems = [
+      ...(tiers.safe || []),
+      ...(tiers.quick_wins || []),
+    ];
+    const totalEmails = allItems.reduce(
+      (sum, item) => sum + (item.count || 0), 0
+    );
+    const banner = document.getElementById('cleanup-total-banner');
+    if (banner && totalEmails > 0) {
+      banner.textContent =
+        `${totalEmails.toLocaleString()} emails identified across all cleanup categories`;
+      banner.style.display = 'block';
+    }
+
     _rows(tiers.safe,             'tier-safe-rows');
     _rows(tiers.quick_wins,       'tier-quick-rows');
     _rows(tiers.review_carefully, 'tier-review-rows');
@@ -634,6 +654,32 @@
             ~${low}–${high} freeable
             </span>`;
         });
+
+        // Sum all sizes and show total at top
+        const total = Object.values(sizes).reduce(
+          (sum, s) => sum + (s.size_mid_gb || 0), 0
+        );
+        if (total > 0) {
+          const banner = document.getElementById('cleanup-total-banner');
+          if (banner) {
+            const low = Object.values(sizes).reduce(
+              (sum, s) => sum + (s.size_low_gb || 0), 0
+            ).toFixed(1);
+            const high = Object.values(sizes).reduce(
+              (sum, s) => sum + (s.size_high_gb || 0), 0
+            ).toFixed(1);
+            const totalEmails = (() => {
+              const scan = window._lastScan;
+              if (!scan || !scan.cleanup_tiers) return 0;
+              const t = scan.cleanup_tiers;
+              return [...(t.safe || []), ...(t.quick_wins || [])]
+                .reduce((sum, item) => sum + (item.count || 0), 0);
+            })();
+            banner.textContent =
+              `${totalEmails ? totalEmails.toLocaleString() + ' emails · ' : ''}Est. ${low}–${high} GB freeable across all categories`;
+            banner.style.display = 'block';
+          }
+        }
       })
       .catch(() => {});
   }
