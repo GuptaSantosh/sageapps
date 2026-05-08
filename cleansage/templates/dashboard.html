@@ -398,17 +398,11 @@
     html += `</div></div>
       <div class="${ROW}">
         <span class="font-medium text-sm">💾 Google Drive</span>
-        <div class="flex items-center gap-4">
-          <span class="${SIZE}">${q.drive_gb || 0} GB</span>
-          <a href="/review/drive" class="${LINK}">Review</a>
-        </div>
+        <span class="${SIZE}">${q.drive_gb || 0} GB</span>
       </div>
       <div class="${ROW}">
         <span class="font-medium text-sm">📷 Google Photos</span>
-        <div class="flex items-center gap-4">
-          <span class="${SIZE}">${q.photos_gb || 0} GB</span>
-          <a href="/review/photos" class="${LINK}">Review</a>
-        </div>
+        <span class="${SIZE}">${q.photos_gb || 0} GB</span>
       </div>`;
 
     el('breakdown-list').innerHTML = html;
