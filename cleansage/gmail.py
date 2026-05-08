@@ -108,19 +108,55 @@ def get_storage_quota(credentials) -> dict:
     about   = service.about().get(fields="storageQuota").execute()
     quota   = about.get("storageQuota", {})
 
-    total    = int(quota.get("limit", 0))
-    used     = int(quota.get("usage", 0))
+    total = int(quota.get("limit", 0))
+    used  = int(quota.get("usage", 0))
     in_drive = int(quota.get("usageInDrive", 0))
     in_trash = int(quota.get("usageInDriveTrash", 0))
 
-    gmail_used = max(0, used - in_drive - in_trash)
     drive_used = in_drive + in_trash
+    total_gb   = _bytes_to_gb(total) if total else 15.0
+    used_gb    = _bytes_to_gb(used)
+    drive_gb   = _bytes_to_gb(drive_used)
+    pct        = round((used / total * 100), 1) if total else 0.0
 
-    total_gb  = _bytes_to_gb(total) if total else 15.0
-    used_gb   = _bytes_to_gb(used)
-    gmail_gb  = _bytes_to_gb(gmail_used)
-    drive_gb  = _bytes_to_gb(drive_used)
-    pct       = round((used / total * 100), 1) if total else 0.0
+    # Gmail + Photos cannot be separated via Drive API.
+    # Estimate Gmail via profile messagesTotal × avg size.
+    # Photos = remainder.
+    try:
+        import requests as _req
+        _ensure_fresh(credentials)
+        profile = _req.get(
+            "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+            headers={"Authorization": f"Bearer {credentials.token}"},
+            timeout=10,
+        )
+        msg_count = profile.json().get("messagesTotal", 0)
+        # Sample 20 messages for avg size
+        list_r = _req.get(
+            f"{GMAIL_BASE}/messages",
+            headers={"Authorization": f"Bearer {credentials.token}"},
+            params={"maxResults": 20, "fields": "messages(id)"},
+            timeout=10,
+        )
+        stubs = list_r.json().get("messages", [])
+        sizes = []
+        for stub in stubs:
+            msg_r = _req.get(
+                f"{GMAIL_BASE}/messages/{stub['id']}",
+                headers={"Authorization": f"Bearer {credentials.token}"},
+                params={"format": "minimal", "fields": "sizeEstimate"},
+                timeout=10,
+            )
+            sizes.append(msg_r.json().get("sizeEstimate", 0))
+        avg_size = sum(sizes) / len(sizes) if sizes else 0
+        gmail_gb  = _bytes_to_gb(int(avg_size * msg_count))
+        # Cap gmail_gb to used_gb - drive_gb (can't exceed total)
+        gmail_gb  = min(gmail_gb, round(used_gb - drive_gb, 4))
+    except Exception:
+        # Fallback: attribute everything non-drive to gmail
+        gmail_gb = round(used_gb - drive_gb, 4)
+
+    photos_gb = round(max(0.0, used_gb - drive_gb - gmail_gb), 4)
 
     return {
         "total_gb":     total_gb,
@@ -128,7 +164,7 @@ def get_storage_quota(credentials) -> dict:
         "percent_used": pct,
         "gmail_gb":     gmail_gb,
         "drive_gb":     drive_gb,
-        "photos_gb":    round(max(0.0, used_gb - gmail_gb - drive_gb), 4),
+        "photos_gb":    photos_gb,
     }
 
 
