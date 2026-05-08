@@ -83,6 +83,12 @@
         </div>
         <div class="tier-rows" id="tier-review-rows"></div>
       </div>
+
+      <p style="font-size:0.78rem; color:#6b7280;
+                text-align:center; margin-top:8px; padding:0 12px;">
+        All deletions move emails to Trash — recoverable for 30 days.
+        Storage updates in Google account within 24 hours.
+      </p>
     </section>
 
     <!-- Section 3: Quick Wins -->
@@ -361,23 +367,7 @@
           <a href="/review/large-attachments" id="review-la-link" class="${LINK}" onclick="handleReviewClick(this)">Review</a>
         </div></div>`;
     }
-    if (bs.length) {
-      const bsMb = bs.reduce((s, i) => s + i.estimated_size_mb, 0);
-      html += `<div class="flex items-center justify-between text-sm">
-        <span class="text-gray-500">└── Bulk sender mail (${bs.length} senders)</span>
-        <div class="flex items-center gap-3">
-          <span class="text-gray-400 text-xs">${(bsMb/1024).toFixed(2)} GB</span>
-          <a href="/review/bulk-senders" class="${LINK}">Review</a>
-        </div></div>`;
-    }
-    if (op.count > 0) {
-      html += `<div class="flex items-center justify-between text-sm">
-        <span class="text-gray-500">└── Old promotions (${fmt(op.count)})</span>
-        <div class="flex items-center gap-3">
-          <span class="text-gray-400 text-xs">${((op.estimated_size_mb||0)/1024).toFixed(2)} GB</span>
-          <a href="/review/old-promotions" class="${LINK}">Review</a>
-        </div></div>`;
-    }
+    // bulk_senders and old_promotions GB estimates omitted — inaccurate
 
     /* PARKED: label breakdown — repurpose later
     html += `
@@ -464,7 +454,11 @@
         <div class="tier-row">
           <div class="tier-row-left">
             <div class="tier-row-label">${item.label}</div>
-            <div class="tier-row-desc">${item.description}</div>
+            <div class="tier-row-desc">${item.description}${
+              (item.key === 'old_updates' || item.key === 'old_inbox')
+              ? '<br><span style="font-size:0.72rem;color:#f59e0b;">★ Highest impact — start here</span>'
+              : ''
+            }</div>
           </div>
           <span class="tier-row-count">
             ${_fmt(item.count, item.capped)} emails
@@ -485,7 +479,8 @@
     const banner = document.getElementById('cleanup-total-banner');
     if (banner && totalEmails > 0) {
       banner.textContent =
-        `${totalEmails.toLocaleString()} emails identified across all cleanup categories`;
+        `${totalEmails.toLocaleString()} emails identified · ` +
+        `Clearing these will meaningfully reduce your storage`;
       banner.style.display = 'block';
     }
 
@@ -626,60 +621,9 @@
     fetch('/api/tier-sizes')
       .then(r => r.json())
       .then(data => {
-        const sizes = data.tier_sizes || {};
-        if (!Object.keys(sizes).length) return;
-
-        // Add size shimmer placeholder to all tier rows first
-        document.querySelectorAll('.tier-row').forEach(row => {
-          const countEl = row.querySelector('.tier-row-count');
-          if (!countEl) return;
-          // Find key from data attribute we'll set on button
-          const btn = row.querySelector('.tier-btn[data-key]');
-          if (!btn) return;
-          const key = btn.dataset.key;
-          const sz = sizes[key];
-          if (!sz || sz.size_mid_gb === 0) return;
-
-          function fmt(gb) {
-            if (gb === 0) return '0 MB';
-            return gb < 1
-              ? Math.round(gb * 1024) + ' MB'
-              : gb.toFixed(1) + ' GB';
-          }
-          const low  = fmt(sz.size_low_gb);
-          const high = fmt(sz.size_high_gb);
-          countEl.innerHTML +=
-            `<br><span style="font-size:0.75rem;
-            color:#22c55e; font-weight:500;">
-            ~${low}–${high} freeable
-            </span>`;
-        });
-
-        // Sum all sizes and show total at top
-        const total = Object.values(sizes).reduce(
-          (sum, s) => sum + (s.size_mid_gb || 0), 0
-        );
-        if (total > 0) {
-          const banner = document.getElementById('cleanup-total-banner');
-          if (banner) {
-            const low = Object.values(sizes).reduce(
-              (sum, s) => sum + (s.size_low_gb || 0), 0
-            ).toFixed(1);
-            const high = Object.values(sizes).reduce(
-              (sum, s) => sum + (s.size_high_gb || 0), 0
-            ).toFixed(1);
-            const totalEmails = (() => {
-              const scan = window._lastScan;
-              if (!scan || !scan.cleanup_tiers) return 0;
-              const t = scan.cleanup_tiers;
-              return [...(t.safe || []), ...(t.quick_wins || [])]
-                .reduce((sum, item) => sum + (item.count || 0), 0);
-            })();
-            banner.textContent =
-              `${totalEmails ? totalEmails.toLocaleString() + ' emails · ' : ''}Est. ${low}–${high} GB freeable across all categories`;
-            banner.style.display = 'block';
-          }
-        }
+        // Size estimates not shown — too inaccurate to be useful
+        // Future: show after delete to confirm storage freed
+        return;
       })
       .catch(() => {});
   }
