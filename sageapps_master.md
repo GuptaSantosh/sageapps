@@ -21,10 +21,50 @@
 - **Status:** Live on DigitalOcean, 12 users, Telegram bot @FinSageAI_bot
 - **Value prop:** Daily portfolio briefing + Nifty signals, India-first
 - **Price:** ₹299–799/mo
-- **Milestone:** 5 users opening daily briefings unprompted. No marketing until it survives a Nifty down day cleanly.
 - **Tech:** DigitalOcean Bangalore, supervisorctl, GitHub, Claude API
-- **Droplet path:** check with `supervisorctl cat finsage` — not yet git-connected
-- **Key rule:** Claude explains, never decides trade amounts. Recommendation consistency = user trust.
+
+### Universe Engine (May 2026) — STABLE
+- 4-track scoring system operational
+- Track A: Magic Formula screen, 25 clean stocks (₹5,000Cr+ market cap)
+  - Source: Screener.in Magic Formula export, uploaded monthly via /universeupdate
+  - Exclusions: SPARC, GOKULAGRO, HINDCON (data distortions)
+- Track C: 7 banks — HDFCBANK, ICICIBANK, KOTAKBANK, AXISBANK, SBIN, 
+  INDUSINDBK, BANKBARODA
+  - Scored on NPA/ROE/NIM/CASA/CAR
+- Track D: 37 quality compounders, manually curated, annual review
+- Track B: Parked — no fundamental data source yet
+
+### Scoring engine fixes (May 2026)
+- Scoring decoupled from momentum fetch — rescored=140 even when 
+  Yahoo rate-limits
+- Refreshscores handler fixed — was reading nested dict at wrong level
+- Exclusion filter fixed — was reading from wrong config sub-key
+- Universe purged of SME phantoms — down from 140 to 25 clean stocks
+
+### Admin commands
+- /adminrefresh — monthly wizard: Track C/D review + Track A upload prompt
+  + auto-triggers refreshscores on completion
+  + 30-day reminder cron if skipped
+- /universeupdate — upload Screener.in Excel directly
+- /refreshscores — background thread, non-blocking, ~7 min runtime
+
+### Key commands (user-facing)
+- /startpack — picks from Track A/C/D by conviction + risk profile
+- /audit — portfolio health check with track labels
+- /deploy — T1/T2 trigger-based deployment plan
+- /brief — daily pre-market digest + portfolio briefing
+
+### Current milestone
+BLOCKER: 5 users opening daily briefings unprompted
+This unlocks: external marketing, TradeSage build, ProductHunt prep
+
+### Known issues / pending
+- Track B empty — needs Screener QGLP/SMiLE upload wired to scoring
+- Sector labels wrong for DMART, CHOLAFIN, TRENT in Track D JSON 
+  (cosmetic, fix next monthly refresh)
+- Failed: 78 stubs in universe JSON — will clear on next /universeupdate
+
+
 
 #### MailSage
 - **Status:** Live on DigitalOcean, Telegram bot @MailSageAI_bot, single user testing (May 3 2026)
@@ -40,7 +80,28 @@
 - **Next:** Use daily for 5-7 days, tune prompt, first external user
 
 
-#### CleanSage — Current Debug State (May 6 2026)
+#### CleanSage — 
+#### CleanSage — Parked State (May 9 2026)
+- Live at cleansage.sageapps.in ✅
+- Storage breakdown accurate: Gmail ~10.5 GB, Photos ~80.4 GB, Drive 0.8 GB ✅
+- Risk-tiered cleanup dashboard: Safe / Quick Wins / Review Carefully ✅
+- Preview before delete working ✅
+- Delete (move to trash) working end to end ✅
+- Honest dashboard — no fake GB estimates ✅
+
+PARKED — reason: Google One native cleanup covers core use case.
+Pivot decision: Path 2 when returning — Photos intelligence
+(duplicate detection, blurry photo flagging, WhatsApp forward detection)
+
+KNOWN ISSUES (parked):
+- Photos Library API returns 403 despite scope granted — 
+  Photos size estimated via math (total - gmail - drive). Accurate enough.
+- /review/bulk-senders 404 — route not built
+- /review/drive and /review/photos routes not built
+- Bulk senders cache: never caches empty result (fix pending)
+- Force-refresh logic in api_bulk_senders (fix pending)
+
+Current Debug State (May 6 2026)
 - Live at cleansage.sageapps.in ✅
 - OAuth working ✅
 - Onboarding working ✅  
@@ -136,6 +197,14 @@ NEXT BLOCKER: /review/large-attachments route not found (404)
 - service name: cleansage — RUNNING
 
 ### 🟡 BUILD NEXT (in order)
+
+Priority order (May 2026):
+1. FinSage — hit 5-user daily brief milestone (unlock for everything)
+2. TaxSage — ITR season peaks July 31, 11 weeks away, start now
+3. ExecSage — after FinSage milestone
+4. TradeSage — after FinSage milestone  
+5. CleanSage Photos — Path 2, duplicate/blurry detection
+6. DocSage — lower urgency
 
 #### CleanSage (new — added Apr 28), live on 5 may
 - **Problem:** Gmail storage full warnings, users frustrated but no time for 3-hour cleanup
@@ -397,3 +466,34 @@ Never ask Claude Code to redesign — only execute what Claude Project scoped.
 - Don't launch on ProductHunt before the app survives a Nifty down day (FinSage) or a high-email day (MailSage)
 - Don't offer lifetime deals
 - Don't build features without a real user asking for it first
+- Don't chase 100% storage accuracy via Gmail API — 
+  ceiling is 60-70% with sampling. Google doesn't expose 
+  Gmail/Photos split via API.
+- Don't build CleanSage Photos until Google One shows its 
+  limits with real users
+
+## 9. Session Log
+
+### Session: May 23 2026 — FinSage Universe Engine Stabilisation
+**Duration:** Full day
+**Outcome:** Universe engine fully operational end-to-end
+
+Fixes shipped:
+1. Refreshscores handler — nested dict parsing bug
+2. Scoring gate — decoupled from momentum fetch success
+3. Track A universe — purged 140 SME phantoms, rebuilt with 
+   25 Screener Magic Formula stocks (₹5,000Cr+ filter)
+4. Startpack Track A/B disconnect — weight config now matches 
+   pick logic
+5. Exclusion filter — wrong config key, silently returning empty
+6. /adminrefresh command — monthly wizard with cron reminder
+7. /universeupdate — fixed single-sheet Excel support + 
+   earnings yield derivation
+
+Starting state: Rescored=0, Track A=phantom SMEs
+Ending state: Rescored=60, clean picks, exclusions working
+
+Next session focus: 
+- Hit 5-user daily brief milestone (primary blocker)
+- Track B scoring (QGLP/SMiLE upload → score pipeline)
+- OR move to TaxSage if FinSage milestone reached
