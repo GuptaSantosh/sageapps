@@ -474,6 +474,29 @@ Never ask Claude Code to redesign — only execute what Claude Project scoped.
 
 ## 9. Session Log
 
+### Session: May 24 2026 — FinSage Full Command Validation
+Duration: Half day
+Outcome: All user-facing commands validated, 6 fixes shipped
+
+Fixes shipped:
+1. GESHIP added to Track A universe lookup in audit_portfolio()
+2. /healthcheck alias added for /health
+3. @aviraj_smile replaced with correct upgrade handle
+4. Monthly plan — Direct-only rule added to all 4 prompts
+   (briefing, monthly, lumpsum, rebalance, analyse)
+5. Monthly plan — HIGH conviction underweight stocks now 
+   injected into stock picks section
+6. Monthly plan — audit_portfolio() wired into /monthly handler
+
+Pending validation (cache issue):
+- Monthly plan Direct-only rule — verify tomorrow morning
+- HIGH conviction stocks in monthly picks — verify tomorrow morning
+
+Next session start:
+1. Confirm monthly plan fixes working (run /monthly fresh)
+2. Build test suite — 6 test cases scoped
+3. Track B scoring pipeline
+
 ### Session: May 23 2026 — FinSage Universe Engine Stabilisation
 **Duration:** Full day
 **Outcome:** Universe engine fully operational end-to-end
