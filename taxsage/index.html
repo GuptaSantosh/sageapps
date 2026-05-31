@@ -639,5 +639,232 @@ function buildOpps(sal,npsEmp,meal,newWins) {
 
 calc();
 </script>
+
+<style>
+/* Coming soon section */
+.coming-wrap {
+  max-width: 1060px; margin: 0 auto 80px; padding: 0 24px;
+}
+.coming-header {
+  text-align: center; margin-bottom: 2.5rem;
+}
+.coming-eyebrow {
+  font-family: 'JetBrains Mono', monospace; font-size: .7rem;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--amber); margin-bottom: 1rem; display: block;
+}
+.coming-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  color: var(--white); line-height: 1.2; margin-bottom: .75rem;
+}
+.coming-title em { color: var(--sage); font-style: italic; }
+.coming-sub {
+  font-size: .9rem; color: var(--muted);
+  max-width: 480px; margin: 0 auto;
+}
+
+/* Feature grid */
+.feat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px; margin-bottom: 3rem;
+}
+.feat-card {
+  background: var(--navy-card); border: 1px solid var(--navy-border);
+  border-radius: 12px; padding: 1.4rem;
+  position: relative; overflow: hidden;
+  transition: border-color .2s, transform .2s;
+}
+.feat-card:hover { border-color: rgba(212,150,58,.3); transform: translateY(-2px); }
+.feat-card.live { border-color: rgba(45,212,160,.25); }
+.feat-card.live::after {
+  content: 'LIVE'; position: absolute; top: 12px; right: 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: .58rem;
+  font-weight: 600; letter-spacing: .06em;
+  background: var(--sage-dim); color: var(--sage);
+  border: 1px solid rgba(45,212,160,.3);
+  padding: 2px 7px; border-radius: 3px;
+}
+.feat-card.soon::after {
+  content: 'COMING SOON'; position: absolute; top: 12px; right: 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: .58rem;
+  font-weight: 600; letter-spacing: .06em;
+  background: var(--amber-dim); color: var(--amber-light);
+  border: 1px solid rgba(212,150,58,.25);
+  padding: 2px 7px; border-radius: 3px;
+}
+.feat-icon {
+  font-size: 1.5rem; margin-bottom: .75rem; display: block;
+}
+.feat-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem; color: var(--white);
+  margin-bottom: .4rem;
+}
+.feat-desc {
+  font-size: .8rem; color: var(--muted); line-height: 1.6;
+  margin-bottom: .75rem;
+}
+.feat-pain {
+  font-size: .75rem; color: var(--text);
+  padding: 7px 10px;
+  background: rgba(0,0,0,.2); border-left: 2px solid var(--amber);
+  border-radius: 0 5px 5px 0; line-height: 1.5;
+  font-style: italic;
+}
+.feat-card.live .feat-pain { border-left-color: var(--sage); }
+
+/* Email capture */
+.email-capture {
+  max-width: 520px; margin: 0 auto;
+  background: var(--navy-card); border: 1px solid var(--navy-border);
+  border-radius: 14px; padding: 2rem;
+  text-align: center; position: relative; overflow: hidden;
+}
+.email-capture::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--amber), var(--sage));
+}
+.email-capture-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.35rem; color: var(--white); margin-bottom: .4rem;
+}
+.email-capture-sub {
+  font-size: .82rem; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.5;
+}
+.email-form { display: flex; gap: 8px; }
+.email-input {
+  flex: 1; padding: 10px 14px;
+  background: rgba(0,0,0,.3); border: 1px solid var(--navy-border);
+  border-radius: 7px; font-family: 'DM Sans', sans-serif;
+  font-size: .88rem; color: var(--white); outline: none;
+  transition: border-color .15s;
+}
+.email-input:focus { border-color: rgba(212,150,58,.5); }
+.email-input::placeholder { color: var(--muted); }
+.email-btn {
+  padding: 10px 18px; background: var(--amber); color: var(--navy);
+  border: none; border-radius: 7px; font-family: 'DM Sans', sans-serif;
+  font-size: .85rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: background .15s;
+}
+.email-btn:hover { background: var(--amber-light); }
+.email-privacy {
+  font-size: .68rem; color: var(--muted); margin-top: .75rem;
+  font-style: italic;
+}
+.email-success {
+  display: none; padding: .75rem;
+  background: var(--sage-dim); border: 1px solid rgba(45,212,160,.2);
+  border-radius: 7px; font-size: .85rem; color: var(--sage);
+}
+@media (max-width: 480px) {
+  .email-form { flex-direction: column; }
+  .feat-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<!-- COMING SOON SECTION -->
+<div class="coming-wrap">
+
+  <div class="coming-header">
+    <span class="coming-eyebrow">// what's next</span>
+    <h2 class="coming-title">TaxSage is just getting<br><em>started</em></h2>
+    <p class="coming-sub">The regime calculator is free forever. Here's what we're building next — everything your CA charges ₹5,000–15,000 for.</p>
+  </div>
+
+  <div class="feat-grid">
+
+    <!-- LIVE -->
+    <div class="feat-card live">
+      <span class="feat-icon">⚖️</span>
+      <div class="feat-name">Regime Calculator</div>
+      <div class="feat-desc">Old vs new regime comparison with your actual salary, NPS, HRA, and meal coupons. Correct tax math — not estimates.</div>
+      <div class="feat-pain">"I never knew my employer NPS was deductible in both regimes. Saved me ₹1.4L I was about to miss."</div>
+    </div>
+
+    <!-- AIS Scanner -->
+    <div class="feat-card soon">
+      <span class="feat-icon">🔍</span>
+      <div class="feat-name">AIS Scanner</div>
+      <div class="feat-desc">Upload your Annual Information Statement. TaxSage reads every line and flags it green / yellow / action needed — in plain English, not tax jargon.</div>
+      <div class="feat-pain">"My AIS showed ₹8,500 under Business Receipts. Turns out it was rent income filed under the wrong TDS code. Would have triggered a notice."</div>
+    </div>
+
+    <!-- Capital Gains Summary -->
+    <div class="feat-card soon">
+      <span class="feat-icon">📊</span>
+      <div class="feat-name">Capital Gains Summary</div>
+      <div class="feat-desc">Upload your Zerodha tax P&L and Kuvera/CAMS statement. Get net LTCG, STCG, tax owed, and exactly how much of the ₹1.25L exemption you've used.</div>
+      <div class="feat-pain">"I had ₹2.2L LTCG across stocks and MFs but didn't realise I had ₹29K in losses to offset. Ended up overpaying tax."</div>
+    </div>
+
+    <!-- Pre-filing Checklist -->
+    <div class="feat-card soon">
+      <span class="feat-icon">✅</span>
+      <div class="feat-name">Pre-filing Checklist</div>
+      <div class="feat-desc">10 things to verify before you click submit — Schedule FA for foreign assets, Schedule AL for assets above ₹50L, dividend declarations, TDS mismatches.</div>
+      <div class="feat-pain">"I filed ITR-2 without filling Schedule FA for my US stocks. Got a notice 8 months later asking for explanation."</div>
+    </div>
+
+    <!-- Advance Tax -->
+    <div class="feat-card soon">
+      <span class="feat-icon">📅</span>
+      <div class="feat-name">Advance Tax Calculator</div>
+      <div class="feat-desc">Know exactly how much to pay on June 15, Sept 15, Dec 15, and March 15 — before the 1% monthly interest kicks in. Telegram reminders included.</div>
+      <div class="feat-pain">"Paid advance tax on salary but forgot my capital gains. Got an interest notice I didn't even understand."</div>
+    </div>
+
+    <!-- Harvest Alerts -->
+    <div class="feat-card soon">
+      <span class="feat-icon">🌾</span>
+      <div class="feat-name">Tax Harvest Alerts</div>
+      <div class="feat-desc">Every February, TaxSage watches your live portfolio and tells you exactly which positions to book to stay under the ₹1.25L LTCG exemption. Saves ₹10K–25K/year.</div>
+      <div class="feat-pain">"I knew tax loss harvesting existed. I just never actually did it because calculating it took 2 hours. This does it in 2 minutes."</div>
+    </div>
+
+  </div>
+
+  <!-- EMAIL CAPTURE -->
+  <div class="email-capture">
+    <div class="email-capture-title">Get early access</div>
+    <div class="email-capture-sub">
+      AIS Scanner and Capital Gains Summary launch before July 15 —
+      before the ITR filing rush. Be first to know.
+    </div>
+    <form class="email-form" id="earlyForm"
+          action="https://docs.google.com/forms/d/e/1FAIpQLSc2OgNpr7BbzJpSFKaVMrTQDBBFz7xwYG-4G_hNMEbaDXECSQ/formResponse"
+          method="POST">
+      <input type="email" name="entry.1559406371" class="email-input"
+             placeholder="your@email.com" required>
+      <input type="hidden" name="entry.370173851" value="TaxSage">
+      <input type="hidden" name="source" value="taxsage-coming-soon">
+      <button type="submit" class="email-btn">Notify me →</button>
+    </form>
+    <div class="email-success" id="emailSuccess">
+      ✓ You're on the list. We'll email you before launch.
+    </div>
+    <div class="email-privacy">No spam. One email when features launch. Unsubscribe any time.</div>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('earlyForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = new FormData(form);
+  try {
+    await fetch(form.action, {
+      method: 'POST',
+      body: data,
+      mode: 'no-cors'
+    });
+  } catch(err) {}
+  form.style.display = 'none';
+  document.getElementById('emailSuccess').style.display = 'block';
+});
+</script>
 </body>
 </html>
