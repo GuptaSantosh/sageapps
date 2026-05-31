@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaxSage — Which tax regime saves you more? | SageApps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:        #0a0f1e;
+  --navy-mid:    #0f1628;
+  --navy-card:   #131c35;
+  --navy-border: #1e2d50;
+  --amber:       #d4963a;
+  --amber-light: #e8b460;
+  --amber-dim:   rgba(212,150,58,0.10);
+  --sage:        #2dd4a0;
+  --sage-dim:    rgba(45,212,160,0.10);
+  --white:       #f0f4ff;
+  --muted:       #6b7fa3;
+  --text:        #c8d4f0;
+  --purple:      #a78bfa;
+  --purple-dim:  rgba(167,139,250,0.08);
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--navy); color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.6; overflow-x: hidden; min-height: 100vh;
+}
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 16px 0;
+  background: rgba(10,15,30,0.92); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--navy-border);
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 1100px; margin: 0 auto; padding: 0 24px;
+}
+.logo { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: var(--white); text-decoration: none; }
+.logo span { color: var(--amber); }
+.logo sup {
+  font-size: .5rem; background: var(--sage); color: var(--navy);
+  padding: 1px 5px; border-radius: 3px; vertical-align: super;
+  font-family: 'DM Sans', sans-serif; font-weight: 500;
+}
+.nav-links { display: flex; gap: 1.5rem; align-items: center; }
+.nav-links a { font-size: .85rem; color: var(--muted); text-decoration: none; transition: color .2s; }
+.nav-links a:hover { color: var(--white); }
+.nav-cta { background: var(--amber) !important; color: var(--navy) !important; padding: .4rem 1rem; border-radius: 6px; font-weight: 500 !important; }
+
+/* HERO */
+.hero { padding: 116px 24px 52px; text-align: center; position: relative; overflow: hidden; }
+.hero-glow {
+  position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse 55% 45% at 50% 0%,rgba(212,150,58,.13) 0%,transparent 65%),
+              radial-gradient(ellipse 35% 25% at 80% 75%,rgba(45,212,160,.07) 0%,transparent 60%);
+}
+.orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .18; animation: float 10s ease-in-out infinite; }
+.o1 { width: 320px; height: 320px; background: #d4963a; top: -5%; left: -8%; }
+.o2 { width: 200px; height: 200px; background: #2dd4a0; bottom: 5%; right: 3%; animation-delay: 4s; }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
+.hero-content { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--amber-dim); border: 1px solid rgba(212,150,58,.25);
+  color: var(--amber-light); padding: .32rem 1rem; border-radius: 100px;
+  font-size: .75rem; font-family: 'JetBrains Mono', monospace;
+  letter-spacing: .04em; margin-bottom: 1.75rem; animation: fadeUp .5s ease both;
+}
+.badge-dot { width: 6px; height: 6px; background: var(--sage); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.4rem,5vw,4rem); line-height: 1.1; color: var(--white); margin-bottom: 1.25rem; animation: fadeUp .5s .1s ease both; }
+h1 em { color: var(--amber); font-style: italic; }
+.hero-sub { font-size: 1rem; color: var(--muted); max-width: 520px; margin: 0 auto 1rem; animation: fadeUp .5s .2s ease both; }
+.hero-proof { font-size: .73rem; color: var(--muted); opacity: .75; animation: fadeUp .5s .3s ease both; }
+.hero-proof strong { color: var(--sage); opacity: 1; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
+
+/* GRID */
+.calc-wrap {
+  max-width: 1060px; margin: 0 auto; padding: 0 24px 80px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;
+  animation: fadeUp .5s .4s ease both;
+}
+@media (max-width: 700px) { .calc-wrap { grid-template-columns: 1fr; } .result-col { order: -1; } }
+
+/* CARD */
+.card { background: var(--navy-card); border: 1px solid var(--navy-border); border-radius: 14px; padding: 1.65rem; position: relative; overflow: hidden; }
+.card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,var(--amber),var(--sage)); transform: scaleX(0); transition: transform .3s; transform-origin: left; }
+.card:hover::before { transform: scaleX(1); }
+.card-tag { font-family: 'JetBrains Mono', monospace; font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: var(--sage); margin-bottom: 1.25rem; display: block; }
+
+/* FIELDS */
+.field { margin-bottom: 1.35rem; }
+.field:last-child { margin-bottom: 0; }
+.field-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .5rem; font-size: .83rem; color: var(--text); }
+.field-val { font-family: 'JetBrains Mono', monospace; font-size: .9rem; color: var(--amber); }
+.field-hint { font-size: .68rem; color: var(--muted); margin-top: 5px; font-style: italic; line-height: 1.5; }
+.field-hint strong { color: var(--sage); font-style: normal; }
+.field-hint.warn { color: var(--amber-light); }
+
+/* Salary field: slider + manual override */
+.salary-inputs { display: flex; flex-direction: column; gap: 8px; }
+.salary-manual-row {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0,0,0,.2); border: 1px solid var(--navy-border);
+  border-radius: 7px; padding: 7px 11px;
+}
+.salary-manual-row label { font-size: .72rem; color: var(--muted); white-space: nowrap; font-family: 'JetBrains Mono', monospace; }
+.salary-override {
+  flex: 1; background: transparent; border: none; outline: none;
+  font-family: 'DM Sans', sans-serif; font-size: .88rem; color: var(--white);
+  text-align: right;
+}
+.salary-override::placeholder { color: var(--muted); }
+
+/* Slider */
+input[type="range"] { -webkit-appearance: none; width: 100%; height: 3px; background: var(--navy-border); border-radius: 3px; outline: none; cursor: pointer; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--amber); border: 2px solid var(--navy-card); box-shadow: 0 0 8px rgba(212,150,58,.4); cursor: pointer; transition: transform .1s; }
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.slider-labels { display: flex; justify-content: space-between; font-size: .67rem; color: var(--muted); margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+
+/* Toggle */
+.toggle-group { display: flex; gap: 7px; flex-wrap: wrap; }
+.toggle-btn { padding: 5px 13px; border: 1px solid var(--navy-border); border-radius: 6px; background: transparent; font-family: 'DM Sans', sans-serif; font-size: .78rem; color: var(--muted); cursor: pointer; transition: all .15s; }
+.toggle-btn:hover { border-color: var(--amber); color: var(--amber-light); }
+.toggle-btn.active { border-color: rgba(212,150,58,.5); background: var(--amber-dim); color: var(--amber-light); font-weight: 500; }
+
+/* Number input */
+.input-wrap { position: relative; display: flex; align-items: center; }
+.input-pfx { position: absolute; left: 11px; font-size: .82rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; pointer-events: none; z-index: 1; }
+.num-input { width: 100%; padding: 9px 12px 9px 26px; background: rgba(0,0,0,.25); border: 1px solid var(--navy-border); border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: .88rem; color: var(--white); outline: none; transition: border-color .15s; }
+.num-input:focus { border-color: rgba(212,150,58,.45); }
+
+/* Divider */
+.field-divider { border: none; border-top: 1px solid var(--navy-border); margin: 1.25rem 0; }
+.section-label { font-family: 'JetBrains Mono', monospace; font-size: .6rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: .85rem; margin-top: .25rem; display: block; }
+
+/* NPS block */
+.nps-block { background: rgba(0,0,0,.15); border: 1px solid var(--navy-border); border-radius: 9px; padding: 14px; margin-bottom: 1.35rem; }
+.nps-block-title { font-family: 'JetBrains Mono', monospace; font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+.nps-row { margin-bottom: 12px; }
+.nps-row:last-child { margin-bottom: 0; }
+.nps-row-label { font-size: .8rem; color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nps-badge { font-family: 'JetBrains Mono', monospace; font-size: .58rem; padding: 2px 7px; border-radius: 3px; font-weight: 500; white-space: nowrap; }
+.nps-badge.both { background: var(--sage-dim); color: var(--sage); border: 1px solid rgba(45,212,160,.25); }
+.nps-badge.old  { background: var(--amber-dim); color: var(--amber-light); border: 1px solid rgba(212,150,58,.25); }
+
+/* RESULT */
+.result-col { position: sticky; top: 90px; }
+.regime-winner { text-align: center; padding: 1rem 0 .9rem; border-bottom: 1px solid var(--navy-border); margin-bottom: 1rem; }
+.winner-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: .4rem; }
+.winner-name { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--sage); margin-bottom: .2rem; }
+.winner-name.old { color: var(--amber); }
+.winner-saving { font-size: .82rem; color: var(--muted); }
+.winner-saving strong { color: var(--sage); font-weight: 600; }
+.winner-saving.old strong { color: var(--amber); }
+
+/* Table */
+.cmp { width: 100%; border-collapse: collapse; margin-bottom: .5rem; }
+.cmp th { font-family: 'JetBrains Mono', monospace; font-size: .6rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 0 0 8px; text-align: right; }
+.cmp th:first-child { text-align: left; }
+.cmp tr { border-top: 1px solid var(--navy-border); }
+.cmp tr:first-child { border-top: none; }
+.cmp td { padding: 8px 0; font-size: .82rem; text-align: right; }
+.cmp td:first-child { text-align: left; color: var(--muted); font-size: .78rem; }
+.cmp .w { color: var(--sage); font-weight: 500; }
+.cmp .w.old { color: var(--amber); }
+.cmp .l { color: var(--muted); }
+.cmp .total td { padding-top: 12px; font-size: .92rem; }
+.cmp .total td:first-child { color: var(--text); font-size: .82rem; }
+.cmp .total .w { font-size: 1rem; }
+
+/* Verdict */
+.verdict { margin-top: .9rem; padding: 11px 14px; background: var(--sage-dim); border-left: 2px solid var(--sage); border-radius: 0 7px 7px 0; font-size: .8rem; color: var(--text); line-height: 1.55; }
+.verdict.old { background: var(--amber-dim); border-left-color: var(--amber); }
+
+/* Zero tax */
+.zero-tax { text-align: center; padding: .85rem; margin-bottom: .75rem; background: var(--sage-dim); border: 1px solid rgba(45,212,160,.2); border-radius: 8px; font-size: .82rem; color: var(--sage); }
+.zero-tax strong { display: block; font-size: 1.05rem; margin-bottom: 2px; }
+
+/* ITR */
+.itr-row { display: flex; align-items: center; justify-content: space-between; margin-top: .9rem; padding: 9px 12px; background: rgba(0,0,0,.2); border: 1px solid var(--navy-border); border-radius: 7px; font-size: .78rem; color: var(--muted); }
+.itr-pill { font-family: 'JetBrains Mono', monospace; font-size: .72rem; font-weight: 500; background: var(--navy-border); color: var(--white); padding: 2px 9px; border-radius: 4px; }
+.itr-pill.itr3 { background: var(--amber-dim); color: var(--amber-light); border: 1px solid rgba(212,150,58,.3); }
+
+/* Actions */
+.actions-label { font-family: 'JetBrains Mono', monospace; font-size: .6rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 1rem 0 .5rem; }
+.action-row { display: flex; gap: 8px; align-items: flex-start; padding: 7px 0; border-top: 1px solid var(--navy-border); font-size: .78rem; color: var(--text); line-height: 1.5; }
+.action-row .arr { color: var(--sage); font-size: .7rem; flex-shrink: 0; margin-top: 2px; }
+.action-row.warn .arr { color: var(--amber); }
+
+/* Opportunities */
+.opp-strip { margin-top: 1rem; padding: 11px 13px; background: var(--purple-dim); border: 1px solid rgba(167,139,250,0.18); border-radius: 7px; }
+.opp-label { font-family: 'JetBrains Mono', monospace; font-size: .58rem; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
+.opp-item { display: flex; gap: 8px; padding: 6px 0; border-top: 1px solid rgba(167,139,250,0.1); font-size: .75rem; line-height: 1.5; color: var(--text); }
+.opp-item:first-of-type { border-top: none; padding-top: 2px; }
+.opp-dot { color: var(--purple); flex-shrink: 0; }
+
+/* FOOTER */
+footer { border-top: 1px solid var(--navy-border); padding: 2rem 24px; text-align: center; font-size: .75rem; color: var(--muted); background: var(--navy-mid); }
+footer a { color: var(--amber); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="https://sageapps.in" class="logo">Sage<span>Apps</span><sup>TAX</sup></a>
+    <div class="nav-links">
+      <a href="https://sageapps.in#apps">All apps</a>
+      <a href="https://t.me/FinSageAI_bot">FinSage</a>
+      <a href="https://sageapps.in#waitlist" class="nav-cta">Get early access →</a>
+    </div>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-glow"></div>
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="hero-content">
+    <div class="hero-badge"><span class="badge-dot"></span>Free · No login · FY 2025-26 (AY 2026-27)</div>
+    <h1>Which tax regime<br>saves you <em>more money?</em></h1>
+    <p class="hero-sub">Fill in your details. Regime recommendation, ITR form, and what to action before you file — in under 2 minutes.</p>
+    <p class="hero-proof"><strong>Illustrative estimates only.</strong> Consult a CA for final filing. Built in Gurgaon for Indian professionals.</p>
+  </div>
+</div>
+
+<div class="calc-wrap">
+
+  <!-- INPUTS -->
+  <div class="card">
+    <span class="card-tag">// your details — FY 2025-26</span>
+
+    <!-- SALARY — slider + manual override -->
+    <div class="field">
+      <div class="field-label">
+        Annual gross salary
+        <span class="field-val" id="salDisp">₹25.00L</span>
+      </div>
+      <div class="salary-inputs">
+        <input type="range" id="salSlider" min="300000" max="20000000" step="100000" value="2500000" oninput="onSlider()">
+        <div class="slider-labels"><span>₹3L</span><span>₹2 Cr</span></div>
+        <div class="salary-manual-row">
+          <label>Or type exact →</label>
+          <input type="number" class="salary-override" id="salManual" placeholder="e.g. 7679467" oninput="onManual()">
+        </div>
+      </div>
+      <div class="field-hint warn">
+        ⚠ Use your <strong>gross salary from payslip</strong> (the "Gross Salary" line in the tax worksheet) — not CTC.
+        CTC includes employer PF and NPS which are entered separately below.
+      </div>
+    </div>
+
+    <!-- 80C -->
+    <div class="field">
+      <div class="field-label">80C investments (PPF, ELSS, LIC…)<span class="field-val" id="c80Disp">₹1.00L</span></div>
+      <input type="range" id="c80Slider" min="0" max="150000" step="5000" value="100000" oninput="calc()">
+      <div class="slider-labels"><span>₹0</span><span>₹1.5L (max)</span></div>
+      <div class="field-hint">Only reduces tax under old regime — ignored in new regime calculation.</div>
+    </div>
+
+    <hr class="field-divider">
+    <span class="section-label">// nps — two separate rules</span>
+
+    <div class="nps-block">
+      <div class="nps-block-title">National Pension System</div>
+
+      <!-- Employer NPS — BOTH regimes -->
+      <div class="nps-row">
+        <div class="nps-row-label">
+          <span>Employer NPS contribution (annual)</span>
+          <span class="nps-badge both">Both regimes ✓</span>
+        </div>
+        <div class="input-wrap">
+          <span class="input-pfx">₹</span>
+          <input type="number" class="num-input" id="npsEmp" placeholder="0" value="0" oninput="calc()">
+        </div>
+        <div class="field-hint">
+          Check payslip for "NPS" row or "SEC 124(2)" / "80CCD(2)" in tax worksheet.
+          <strong>Deducted from taxable income in both regimes.</strong> Typically 10–14% of basic.
+        </div>
+      </div>
+
+      <!-- Personal NPS — OLD only -->
+      <div class="nps-row">
+        <div class="nps-row-label">
+          <span>Your own NPS contribution (80CCD 1B)</span>
+          <span class="nps-badge old">Old regime only</span>
+        </div>
+        <div class="toggle-group">
+          <button class="toggle-btn active" onclick="tog('nps','no',this)">No</button>
+          <button class="toggle-btn" onclick="tog('nps','yes',this)">Yes (+₹50K)</button>
+        </div>
+        <div class="field-hint">Zero benefit under new regime — ITR utility will reject this deduction if you are on Section 115BAC.</div>
+      </div>
+    </div>
+
+    <hr class="field-divider">
+    <span class="section-label">// tax-free perquisites (reduce gross in both regimes)</span>
+
+    <!-- Meal coupons -->
+    <div class="field">
+      <div class="field-label">Meal coupons / Sodexo claimed this year</div>
+      <div class="input-wrap">
+        <span class="input-pfx">₹</span>
+        <input type="number" class="num-input" id="mealAmt" placeholder="0" value="0" oninput="calc()">
+      </div>
+      <div class="field-hint">
+        Tax-free perquisite — excluded from gross salary in <strong>both regimes</strong>.
+        Max ₹200/meal × 2 meals × 250 days = ₹1,05,600/year (updated April 2026).
+        Check your HR portal for unclaimed balance — most employees miss this.
+      </div>
+    </div>
+
+    <!-- Other tax-free perks -->
+    <div class="field">
+      <div class="field-label">Other tax-free perquisites</div>
+      <div class="input-wrap">
+        <span class="input-pfx">₹</span>
+        <input type="number" class="num-input" id="perqAmt" placeholder="0" value="0" oninput="calc()">
+      </div>
+      <div class="field-hint">
+        Phone/internet reimbursement, club membership, car lease perquisite value reduction —
+        amounts that are structurally excluded from taxable salary. Both regimes.
+      </div>
+    </div>
+
+    <hr class="field-divider">
+    <span class="section-label">// housing (old regime deductions)</span>
+
+    <div class="field">
+      <div class="field-label">Home loan interest paid this year</div>
+      <div class="input-wrap">
+        <span class="input-pfx">₹</span>
+        <input type="number" class="num-input" id="hloan" placeholder="0" value="0" oninput="calc()">
+      </div>
+      <div class="field-hint">Old regime: max ₹2L deduction (Section 24b). New regime: no deduction for self-occupied property.</div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Monthly rent you pay</div>
+      <div class="input-wrap">
+        <span class="input-pfx">₹</span>
+        <input type="number" class="num-input" id="rentPm" placeholder="0" value="0" oninput="calc()">
+      </div>
+      <div class="field-hint">HRA exemption only under old regime. Enter 0 if you own your home.</div>
+    </div>
+
+    <div class="field">
+      <div class="field-label" style="margin-bottom:.45rem">City (for HRA)</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" onclick="tog('city','metro',this)">Metro (Delhi/Mumbai/Kolkata/Chennai)</button>
+        <button class="toggle-btn" onclick="tog('city','nonmetro',this)">Non-metro</button>
+      </div>
+    </div>
+
+    <hr class="field-divider">
+    <span class="section-label">// other income & profile</span>
+
+    <div class="field">
+      <div class="field-label">Other income (dividends + interest)</div>
+      <div class="input-wrap">
+        <span class="input-pfx">₹</span>
+        <input type="number" class="num-input" id="otherInc" placeholder="0" value="0" oninput="calc()">
+      </div>
+      <div class="field-hint">FD interest, savings interest, dividends — taxed at slab in both regimes. Check AIS for exact amounts.</div>
+    </div>
+
+    <div class="field">
+      <div class="field-label" style="margin-bottom:.45rem">Properties owned</div>
+      <div class="toggle-group">
+        <button class="toggle-btn" onclick="tog('prop','0',this)">0</button>
+        <button class="toggle-btn active" onclick="tog('prop','1',this)">1</button>
+        <button class="toggle-btn" onclick="tog('prop','2',this)">2</button>
+        <button class="toggle-btn" onclick="tog('prop','3p',this)">3+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label" style="margin-bottom:.45rem">F&O trading or freelance income?</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" onclick="tog('fo','no',this)">No</button>
+        <button class="toggle-btn" onclick="tog('fo','yes',this)">Yes → ITR-3</button>
+      </div>
+      <div class="field-hint">F&O or consulting = business income. ITR-3 mandatory regardless of other factors.</div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="card result-col">
+    <span class="card-tag">// your result</span>
+
+    <div id="zeroBox" class="zero-tax" style="display:none">
+      <strong>₹0 tax this year 🎉</strong>
+      New regime: full 87A rebate — zero tax below ₹12L taxable income.
+    </div>
+
+    <div class="regime-winner">
+      <div class="winner-eyebrow">Recommended regime</div>
+      <div class="winner-name" id="winName">New Regime</div>
+      <div class="winner-saving" id="winSaving">saves you <strong id="savAmt">—</strong> vs old regime</div>
+    </div>
+
+    <table class="cmp">
+      <thead><tr><th></th><th id="h1">Old</th><th id="h2">New ✓</th></tr></thead>
+      <tbody>
+        <tr><td>Gross income</td><td id="og" class="l">—</td><td id="ng" class="w">—</td></tr>
+        <tr><td>Tax-free perqs</td><td id="op" class="l">—</td><td id="np" class="w">—</td></tr>
+        <tr><td>Deductions</td><td id="od" class="l">—</td><td id="nd" class="w">—</td></tr>
+        <tr><td>Taxable income</td><td id="ot" class="l">—</td><td id="nt" class="w">—</td></tr>
+        <tr class="total"><td>Tax + cess</td><td id="ox" class="l">—</td><td id="nx" class="w">—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="verdict" id="verd"></div>
+
+    <div class="itr-row">
+      <span id="itrReason">Salaried — simple income</span>
+      <span class="itr-pill" id="itrPill">ITR-1</span>
+    </div>
+
+    <div class="actions-label">before you file →</div>
+    <div id="actList"></div>
+    <div id="oppStrip"></div>
+  </div>
+</div>
+
+<footer>
+  A free tool by <a href="https://sageapps.in">SageApps</a> ·
+  FY 2025-26 · Estimates only · India-first ·
+  <a href="https://sageapps.in#waitlist">Get TaxSage early access →</a>
+</footer>
+
+<script>
+const S = { city: 'metro', nps: 'no', prop: '1', fo: 'no' };
+let salaryVal = 2500000;
+
+function tog(k,v,btn) {
+  S[k]=v;
+  btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  calc();
+}
+
+// Salary: slider drives manual display; manual overrides slider
+function onSlider() {
+  salaryVal = +document.getElementById('salSlider').value;
+  document.getElementById('salManual').value = '';
+  calc();
+}
+function onManual() {
+  const v = +(document.getElementById('salManual').value) || 0;
+  if (v > 0) {
+    salaryVal = v;
+    // keep slider within its range if possible
+    const clamped = Math.min(Math.max(v, 300000), 20000000);
+    document.getElementById('salSlider').value = clamped;
+  }
+  calc();
+}
+
+function fL(n) {
+  if (n===0) return '₹0';
+  if (n>=10000000) return '₹'+(n/10000000).toFixed(2)+'Cr';
+  if (n>=100000)   return '₹'+(n/100000).toFixed(2)+'L';
+  if (n>=1000)     return '₹'+(n/1000).toFixed(1)+'K';
+  return '₹'+Math.round(n).toLocaleString('en-IN');
+}
+function fFull(n) { return '₹'+Math.round(n).toLocaleString('en-IN'); }
+
+function calcNew(t) {
+  if (t<=1200000) return 0;
+  const sl=[[400000,0],[800000,.05],[1200000,.10],[1600000,.15],[2000000,.20],[2400000,.25],[Infinity,.30]];
+  let tax=0,prev=0;
+  for(const[lim,r] of sl){if(t<=prev)break;tax+=(Math.min(t,lim)-prev)*r;prev=lim;}
+  return tax;
+}
+function calcOld(t) {
+  if (t<=500000) return 0;
+  const sl=[[250000,0],[500000,.05],[1000000,.20],[Infinity,.30]];
+  let tax=0,prev=0;
+  for(const[lim,r] of sl){if(t<=prev)break;tax+=(Math.min(t,lim)-prev)*r;prev=lim;}
+  return tax;
+}
+function withCess(tax,inc) {
+  let s=0;
+  if(inc>50000000)s=.37;else if(inc>20000000)s=.25;else if(inc>10000000)s=.15;else if(inc>5000000)s=.10;
+  return Math.round(tax*(1+s)*1.04);
+}
+function calcHRA(sal,rentPm,metro) {
+  if(rentPm<=0)return 0;
+  const basic=sal*.50;
+  const hraRcvd=basic*(metro?.50:.40);
+  const rentAnn=rentPm*12;
+  const pct=basic*(metro?.50:.40);
+  const excess=Math.max(0,rentAnn-0.10*basic);
+  return Math.min(hraRcvd,pct,excess);
+}
+
+function calc() {
+  const sal    = salaryVal;
+  const c80    = +document.getElementById('c80Slider').value;
+  const npsEmp = +(document.getElementById('npsEmp').value)||0;
+  const meal   = +(document.getElementById('mealAmt').value)||0;
+  const perq   = +(document.getElementById('perqAmt').value)||0;
+  const hloan  = Math.min(+(document.getElementById('hloan').value)||0,200000);
+  const rentPm = +(document.getElementById('rentPm').value)||0;
+  const other  = +(document.getElementById('otherInc').value)||0;
+  const metro  = S.city==='metro';
+  const npsOld = S.nps==='yes'?50000:0;
+
+  // display
+  document.getElementById('salDisp').textContent = fL(sal);
+  document.getElementById('c80Disp').textContent = fL(c80);
+
+  // tax-free perquisites reduce gross in BOTH regimes
+  const totalPerqs = meal + perq;
+  const grossAfterPerq = Math.max(0, sal - totalPerqs);
+  const totalIncome = grossAfterPerq + other;
+
+  const hra = calcHRA(sal, rentPm, metro);
+
+  // OLD REGIME
+  const oldDed     = 50000 + Math.min(c80,150000) + hloan + hra + npsOld + npsEmp;
+  const oldTaxable = Math.max(0, totalIncome - oldDed);
+  const oldFinal   = withCess(calcOld(oldTaxable), oldTaxable);
+
+  // NEW REGIME
+  const newDed     = 75000 + npsEmp;
+  const newTaxable = Math.max(0, totalIncome - newDed);
+  const newFinal   = withCess(calcNew(newTaxable), newTaxable);
+
+  const newWins = newFinal <= oldFinal;
+  const saving  = Math.abs(oldFinal - newFinal);
+
+  document.getElementById('zeroBox').style.display = newFinal===0?'block':'none';
+
+  // Winner
+  document.getElementById('winName').textContent = newWins?'New Regime':'Old Regime';
+  document.getElementById('winName').className   = 'winner-name'+(newWins?'':' old');
+  document.getElementById('winSaving').className = 'winner-saving'+(newWins?'':' old');
+  document.getElementById('savAmt').textContent  = fFull(saving);
+
+  // Table
+  const wC=newWins?'w':'w old', lC='l';
+  document.getElementById('h1').textContent=newWins?'Old':'Old ✓';
+  document.getElementById('h2').textContent=newWins?'New ✓':'New';
+
+  const set=(id,v,c)=>{document.getElementById(id).textContent=v;document.getElementById(id).className=c;};
+  const grossDisp = fL(sal+(other>0?other:0));
+  set('og',grossDisp,newWins?lC:wC); set('ng',grossDisp,newWins?wC:lC);
+
+  const perqDisp = totalPerqs>0?'–'+fL(totalPerqs):'—';
+  set('op',perqDisp,newWins?lC:wC); set('np',perqDisp,newWins?wC:lC);
+
+  set('od','–'+fL(oldDed),newWins?lC:wC); set('nd','–'+fL(newDed),newWins?wC:lC);
+  set('ot',fL(oldTaxable),newWins?lC:wC); set('nt',fL(newTaxable),newWins?wC:lC);
+  set('ox',fFull(oldFinal),newWins?lC:wC); set('nx',fFull(newFinal),newWins?wC:lC);
+
+  // Verdict
+  const verd=document.getElementById('verd');
+  const npsNote = npsEmp>0?` Employer NPS (${fL(npsEmp)}) reduces taxable income in both regimes.`:'';
+  const mealNote = meal>0?` Meal coupons (${fL(meal)}) excluded from gross — both regimes.`:'';
+  if(newWins){
+    verd.className='verdict';
+    verd.textContent = oldDed<450000
+      ?`New regime wins by ${fFull(saving)}. Your deductions (${fL(oldDed)}) are below the ~₹8L threshold where old regime pays off at this salary.${npsNote}${mealNote}`
+      :`New regime still wins by ${fFull(saving)} even with your deductions. At this income level, the new slab rates outperform the exemptions you can claim.${npsNote}${mealNote}`;
+  } else {
+    verd.className='verdict old';
+    verd.textContent=`Old regime saves ${fFull(saving)}. Your deductions (${fL(oldDed)}) are large enough to justify the paperwork. Submit all investment proofs to HR before February.${npsNote}`;
+  }
+
+  buildITR(sal,other,S);
+  buildActions(sal,S,newWins,npsEmp,other,meal);
+  buildOpps(sal,npsEmp,meal,newWins);
+}
+
+function buildITR(sal,other,S) {
+  const p=parseInt(S.prop)||1;
+  let form='ITR-1',reason='Salaried — simple income',is3=false;
+  if(S.fo==='yes'){form='ITR-3';reason='F&O / freelance = business income → ITR-3';is3=true;}
+  else if(p>=2||S.prop==='3p'){form='ITR-2';reason='Multiple properties → Schedule HP required';}
+  else if(sal>2000000||other>50000){form='ITR-2';reason='Income profile → likely capital gains or foreign assets';}
+  else if(other>0){form='ITR-2';reason='Other income declared → ITR-2 is safer';}
+  document.getElementById('itrPill').textContent=form;
+  document.getElementById('itrPill').className='itr-pill'+(is3?' itr3':'');
+  document.getElementById('itrReason').textContent=reason;
+}
+
+function buildActions(sal,S,newWins,npsEmp,other,meal) {
+  const acts=[];
+  if(S.fo==='yes') acts.push({text:'F&O/freelance income is business income, not capital gains. ITR-3 mandatory. Maintain books showing turnover for potential tax audit.',warn:true});
+  if(S.prop==='3p') acts.push({text:'3+ properties: only 2 can be self-occupied. Third is deemed let-out — notional rent taxable even if empty. Declare in Schedule HP.',warn:true});
+  if(npsEmp>0) acts.push({text:`Employer NPS (${fL(npsEmp)}) deducted under Section 124(2)/80CCD(2). Verify your NPS PRAN statement shows this amount being credited — discrepancies are common.`});
+  if(meal===0) acts.push({text:'Check your HR portal for unclaimed meal coupon / Sodexo balance. ₹200/meal × 2 × 250 days = ₹1.05L tax-free annually under both regimes (updated April 2026).'});
+  if(newWins) acts.push({text:'New regime is default — employer applies it automatically. No action needed unless you want to opt out for old regime.'});
+  else acts.push({text:'Old regime: submit 80C proofs, home loan certificate, and rent receipts to HR before their February deadline — missing it forces new regime TDS.',warn:true});
+  if(sal>5000000) acts.push({text:'Income above ₹50L: Schedule AL (Assets & Liabilities) mandatory. Declare all properties, equity portfolio, vehicles, and loans at cost.'});
+  if(other>0) acts.push({text:'Dividends and interest declared under Other Sources — cross-check every entry against your AIS on incometax.gov.in before filing.'});
+  acts.push({text:'Download AIS from incometax.gov.in before filing. Verify all TDS credits, dividend entries, and foreign remittances match your declaration.'});
+
+  document.getElementById('actList').innerHTML=acts.map(a=>
+    `<div class="action-row${a.warn?' warn':''}"><span class="arr">→</span><span>${a.text}</span></div>`
+  ).join('');
+}
+
+function buildOpps(sal,npsEmp,meal,newWins) {
+  const opps=[];
+  const marginal = sal>10000000?.37:sal>5000000?.35:.31;
+
+  if(meal===0) {
+    const saving=Math.round(105600*marginal);
+    opps.push(`<strong style="color:var(--sage)">Meal coupons unclaimed:</strong> Your employer likely offers Sodexo/meal cards — ₹1.05L/year is fully tax-free in both regimes (April 2026 update). Saving ~${fFull(saving)}/year. Check HR portal now.`);
+  }
+  if(npsEmp===0) {
+    const potential=Math.round(sal*.50*.14);
+    const saving=Math.round(potential*marginal);
+    opps.push(`<strong style="color:var(--sage)">Employer NPS not entered:</strong> If your employer contributes to NPS, it reduces taxable income in both regimes. At your salary, 14% of basic = ~${fL(potential)}/year — saving ~${fFull(saving)} in tax. Check payslip for "SEC 124(2)".`);
+  }
+  if(sal>1500000) {
+    opps.push(`<strong style="color:var(--purple)">Company car lease:</strong> Works under new regime. Employer pays lease, only a lower notional perquisite value is taxed. Potential saving ₹80K–₹1.5L/year. Ask HR if it's in your FBP. <em>Note: draft Income Tax Act 2025 rules may reduce this benefit from FY 2026-27.</em>`);
+  }
+
+  const strip=document.getElementById('oppStrip');
+  if(opps.length===0){strip.innerHTML='';return;}
+  strip.innerHTML=`<div class="opp-strip">
+    <div class="opp-label">// opportunities you may be missing</div>
+    ${opps.map(o=>`<div class="opp-item"><span class="opp-dot">↗</span><span>${o}</span></div>`).join('')}
+  </div>`;
+}
+
+calc();
+</script>
+</body>
+</html>
