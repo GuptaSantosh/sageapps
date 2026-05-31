@@ -283,6 +283,10 @@ git add . && git commit -m "fix: ..." && git push
 cd /home/mailsage/mailsage && git pull && supervisorctl restart mailsage-bot mailsage-auth
 ```
 
+### Static Site Deploy (sageapps.in)
+sageapps.in (including /taxsage/) — GitHub Pages, auto-deploys on git push.
+Webroot is NOT the droplet. Droplet (/var/www/sageapps.in) is NOT used for static site.
+
 ### supervisorctl services
 - `finsage` — RUNNING (uptime 10+ days)
 - `mailsage-bot` — RUNNING
@@ -473,6 +477,41 @@ Never ask Claude Code to redesign — only execute what Claude Project scoped.
   limits with real users
 
 ## 9. Session Log
+### Session 28 May 2026 (continued)
+- Macro overlay feature shipped: macro_engine.py + macro_config.json
+- /brief injection working (post-response append pattern)
+- /macro command live — Pro+ only, free gate working
+- Keyboard: /macro + /audit added
+- Tier normalisation: .lower().strip() fix applied
+
+###Session 28 May 2026
+- Track A/B restored: 28 + 67 stocks
+- Universe fully operational: 136 scored stocks across 4 tracks
+- test_universe.py clean: 4 picks across C/D/A, NOT_SCORED=0
+- Pending: Track B quality review (TIPSMUSIC etc — SME noise risk)
+
+### Session: May 27 2026 — FinSage Test Suite + Data Fixes
+Outcome: 13 tests added, 3 data bugs fixed, engine clean
+
+Fixed:
+- HDFCBANK/ICICIBANK/KOTAKBANK removed from compounders.json (Track D)
+  Root cause: classify_stock() D>C priority was reading wrong conviction
+- Regression test: test_banks_not_in_track_d protects all three
+
+Tests added (219 → 232):
+- 6 TestMonthlySipPlan (Direct-only, HIGH conviction injection)
+- 3 TestPrompts Direct-over-Regular (briefing, lumpsum, rebalance)
+- 4 TestUniverseEngine (bank regression, audit signals, 
+  startpack conviction filter, deploy ranking)
+
+Data state:
+- Track C: 7 banks, fully scored ✅
+- Track D: 34 compounders, rescored 34/34 ✅
+- Track A/B: empty — needs /universeupdate + screener.in Excel
+
+Next session: /universeupdate + Track B scoring pipeline
+
+
 
 ### Session: May 24 2026 — FinSage Full Command Validation
 Duration: Half day
