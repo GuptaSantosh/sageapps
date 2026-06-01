@@ -87,7 +87,13 @@ h1 em { color: var(--amber); font-style: italic; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;
   animation: fadeUp .5s .4s ease both;
 }
-@media (max-width: 700px) { .calc-wrap { grid-template-columns: 1fr; } .result-col { order: -1; } }
+@media (max-width: 700px) {
+  .calc-wrap { grid-template-columns: 1fr; }
+  .result-col {
+    order: 2;
+    position: static;
+  }
+}
 
 /* CARD */
 .card { background: var(--navy-card); border: 1px solid var(--navy-border); border-radius: 14px; padding: 1.65rem; position: relative; overflow: hidden; }
