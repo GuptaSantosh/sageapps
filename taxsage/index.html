@@ -780,6 +780,71 @@ calc();
 }
 </style>
 
+<section id="ais-scanner" style="margin: 60px auto; max-width: 720px; padding: 0 20px;">
+  <h2 style="font-family:'Playfair Display',serif; color:#d4963a; font-size:1.8rem; margin-bottom:8px;">
+    AIS Scanner <span style="font-size:0.9rem; background:#d4963a22; color:#d4963a;
+    padding:3px 10px; border-radius:20px; font-family:'JetBrains Mono',monospace;">Beta</span>
+  </h2>
+  <p style="color:#94a3b8; margin-bottom:24px;">
+    Upload your AIS PDF from the Income Tax portal. We'll flag what needs action
+    before you file — in plain English.
+  </p>
+
+  <div id="scanner-form" style="background:#0f172a; border:1px solid #1e293b;
+       border-radius:12px; padding:28px;">
+
+    <div style="margin-bottom:16px;">
+      <label style="color:#94a3b8; font-size:0.85rem; display:block; margin-bottom:6px;">
+        AIS PDF (download from incometax.gov.in → AIS → Download)
+      </label>
+      <input type="file" id="ais-pdf" accept=".pdf"
+             style="width:100%; padding:10px; background:#1e293b; border:1px solid #334155;
+             border-radius:8px; color:#e2e8f0; font-size:0.9rem; cursor:pointer;">
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label style="color:#94a3b8; font-size:0.85rem; display:block; margin-bottom:6px;">
+          PAN
+        </label>
+        <input type="text" id="ais-pan" placeholder="ABCDE1234F" maxlength="10"
+               style="width:100%; padding:10px; background:#1e293b; border:1px solid #334155;
+               border-radius:8px; color:#e2e8f0; font-size:0.9rem;
+               font-family:'JetBrains Mono',monospace; box-sizing:border-box;"
+               oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div>
+        <label style="color:#94a3b8; font-size:0.85rem; display:block; margin-bottom:6px;">
+          Date of Birth
+        </label>
+        <input type="text" id="ais-dob" placeholder="DD/MM/YYYY" maxlength="10"
+               style="width:100%; padding:10px; background:#1e293b; border:1px solid #334155;
+               border-radius:8px; color:#e2e8f0; font-size:0.9rem;
+               font-family:'JetBrains Mono',monospace; box-sizing:border-box;">
+      </div>
+    </div>
+
+    <p style="color:#475569; font-size:0.78rem; margin-bottom:20px;">
+      🔒 Your PDF is decrypted in memory and never stored.
+      PAN + DOB are used only to unlock the PDF — not saved anywhere.
+    </p>
+
+    <button onclick="runAisScan()" id="scan-btn"
+            style="width:100%; padding:14px; background:#d4963a; color:#0a0f1e;
+            border:none; border-radius:8px; font-size:1rem; font-weight:700;
+            cursor:pointer; font-family:'Playfair Display',serif;">
+      Scan My AIS
+    </button>
+  </div>
+
+  <div id="scan-status" style="display:none; margin-top:20px; text-align:center;
+       color:#94a3b8; padding:20px;">
+  </div>
+
+  <div id="scan-results" style="display:none; margin-top:24px;">
+  </div>
+</section>
+
 <!-- COMING SOON SECTION -->
 <div class="coming-wrap">
 
@@ -864,6 +929,136 @@ calc();
   </div>
 
 </div>
+
+<script>
+function runAisScan() {
+  const file = document.getElementById('ais-pdf').files[0];
+  const pan  = document.getElementById('ais-pan').value.trim();
+  const dob  = document.getElementById('ais-dob').value.trim();
+
+  // Validate
+  if (!file) { alert('Please select your AIS PDF.'); return; }
+  if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan)) {
+    alert('Invalid PAN format. Example: ABCDE1234F'); return;
+  }
+  const dobParts = dob.split('/');
+  if (dobParts.length !== 3 || dob.length !== 10) {
+    alert('Enter date of birth as DD/MM/YYYY'); return;
+  }
+  const dobFormatted = dobParts[0] + dobParts[1] + dobParts[2]; // DDMMYYYY
+
+  // Show loading
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+  const status = document.getElementById('scan-status');
+  status.style.display = 'block';
+  status.innerHTML = '⏳ Analysing your AIS — this takes 15–20 seconds...';
+  document.getElementById('scan-results').style.display = 'none';
+
+  // Build form data
+  const formData = new FormData();
+  formData.append('pdf_file', file);
+  formData.append('pan', pan);
+  formData.append('dob', dobFormatted);
+
+  fetch('https://api.sageapps.in/taxsage-api/scan', {
+    method: 'POST',
+    body: formData
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.textContent = 'Scan My AIS';
+    status.style.display = 'none';
+
+    if (data.error) {
+      const msgs = {
+        'wrong_password': 'Incorrect PAN or date of birth. Please check and retry.',
+        'parse_error': 'Could not read the AIS. Please try again.',
+        'api_error': 'Service temporarily unavailable. Please try again in a minute.'
+      };
+      document.getElementById('scan-results').style.display = 'block';
+      document.getElementById('scan-results').innerHTML =
+        '<p style="color:#f87171; padding:20px; background:#1e293b; border-radius:8px;">' +
+        '❌ ' + (msgs[data.error] || 'Something went wrong. Please try again.') + '</p>';
+      return;
+    }
+
+    renderResults(data);
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Scan My AIS';
+    status.style.display = 'none';
+    document.getElementById('scan-results').style.display = 'block';
+    document.getElementById('scan-results').innerHTML =
+      '<p style="color:#f87171; padding:20px; background:#1e293b; border-radius:8px;">' +
+      '❌ Network error. Please check your connection and try again.</p>';
+  });
+}
+
+function renderResults(data) {
+  const s = data.summary;
+  const results = document.getElementById('scan-results');
+  results.style.display = 'block';
+
+  // Summary bar
+  let html = `
+    <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px;
+         padding:20px; margin-bottom:20px;">
+      <p style="color:#e2e8f0; font-size:1rem; margin:0 0 16px 0;
+         font-family:'Playfair Display',serif;">${s.headline}</p>
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <span style="background:#fee2e222; color:#f87171; padding:6px 14px;
+              border-radius:20px; font-family:'JetBrains Mono',monospace; font-size:0.85rem;">
+          🔴 ${s.red_flags} Action needed
+        </span>
+        <span style="background:#fef3c722; color:#fbbf24; padding:6px 14px;
+              border-radius:20px; font-family:'JetBrains Mono',monospace; font-size:0.85rem;">
+          🟡 ${s.yellow_flags} Review
+        </span>
+        <span style="background:#dcfce722; color:#4ade80; padding:6px 14px;
+              border-radius:20px; font-family:'JetBrains Mono',monospace; font-size:0.85rem;">
+          🟢 ${s.green_flags} All good
+        </span>
+      </div>
+    </div>`;
+
+  // Sort: red first, then yellow, then green
+  const order = { red: 0, yellow: 1, green: 2 };
+  const sorted = [...data.flags].sort((a,b) => order[a.flag_level] - order[b.flag_level]);
+
+  const colors = {
+    red:    { border:'#f87171', bg:'#fee2e211', emoji:'🔴' },
+    yellow: { border:'#fbbf24', bg:'#fef3c711', emoji:'🟡' },
+    green:  { border:'#4ade80', bg:'#dcfce711', emoji:'🟢' }
+  };
+
+  sorted.forEach(flag => {
+    const c = colors[flag.flag_level];
+    const amt = flag.amount ? '₹' + flag.amount.toLocaleString('en-IN') : '';
+    html += `
+      <div style="background:${c.bg}; border-left:4px solid ${c.border};
+           border-radius:8px; padding:18px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;
+             margin-bottom:8px;">
+          <span style="color:#94a3b8; font-family:'JetBrains Mono',monospace;
+                font-size:0.78rem;">${c.emoji} ${flag.section_code} · ${flag.section_name}</span>
+          <span style="color:#e2e8f0; font-family:'JetBrains Mono',monospace;
+                font-size:0.85rem; font-weight:700;">${amt}</span>
+        </div>
+        <p style="color:#e2e8f0; margin:0 0 ${flag.action ? '10px' : '0'} 0;
+           font-size:0.92rem; line-height:1.5;">${flag.plain_english}</p>
+        ${flag.action ? `<div style="background:#0a0f1e; border-radius:6px; padding:10px 14px;
+           color:#94a3b8; font-size:0.82rem; line-height:1.5;">
+           <strong style="color:#d4963a;">Next step:</strong> ${flag.action}</div>` : ''}
+      </div>`;
+  });
+
+  results.innerHTML = html;
+}
+</script>
 
 <script>
 document.getElementById('earlyForm').addEventListener('submit', async function(e) {
