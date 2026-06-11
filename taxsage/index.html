@@ -55,11 +55,7 @@ nav {
 
 /* HERO */
 .hero { padding: 116px 24px 52px; text-align: center; position: relative; overflow: hidden; }
-.hero-glow {
-  position: absolute; inset: 0; z-index: 0;
-  background: radial-gradient(ellipse 55% 45% at 50% 0%,rgba(212,150,58,.13) 0%,transparent 65%),
-              radial-gradient(ellipse 35% 25% at 80% 75%,rgba(45,212,160,.07) 0%,transparent 60%);
-}
+.hero-glow { display: none; }
 .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .18; animation: float 10s ease-in-out infinite; }
 .o1 { width: 320px; height: 320px; background: #d4963a; top: -5%; left: -8%; }
 .o2 { width: 200px; height: 200px; background: #2dd4a0; bottom: 5%; right: 3%; animation-delay: 4s; }
@@ -230,7 +226,7 @@ footer a { color: var(--amber); text-decoration: none; }
     <div class="nav-links">
       <a href="https://sageapps.in#apps">All apps</a>
       <a href="https://t.me/FinSageAI_bot">FinSage</a>
-      <a href="https://sageapps.in#waitlist" class="nav-cta">Get early access →</a>
+      <a href="#ais-scanner" class="nav-cta" onclick="event.preventDefault();document.getElementById('ais-scanner').scrollIntoView({behavior:'smooth'})">Try free →</a>
     </div>
   </div>
 </nav>
@@ -250,6 +246,7 @@ footer a { color: var(--amber); text-decoration: none; }
 <!-- TOOL CARDS -->
 <style>
 @media (max-width:600px) { .tool-cards { grid-template-columns: 1fr !important; } }
+@media (max-width:640px) { .tool-cards button { padding: 10px 16px !important; } }
 </style>
 <div class="tool-cards" style="max-width:720px; margin:0 auto 40px; padding:0 20px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
 
