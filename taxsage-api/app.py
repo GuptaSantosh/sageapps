@@ -1,16 +1,11 @@
 import io
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from dotenv import load_dotenv
 import ais_scanner
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, origins=["https://sageapps.in"],
-     supports_credentials=False,
-     allow_headers=["Content-Type"],
-     methods=["GET", "POST", "OPTIONS"])
 
 
 @app.route("/health", methods=["GET"])
