@@ -966,7 +966,12 @@ function runAisScan() {
     method: 'POST',
     body: formData
   })
-  .then(r => r.json())
+  .then(r => {
+    if (!r.ok) {
+      return r.json().then(e => { throw new Error(e.message || 'Server error ' + r.status); });
+    }
+    return r.json();
+  })
   .then(data => {
     btn.disabled = false;
     btn.textContent = 'Scan My AIS';
