@@ -1,0 +1,6 @@
+flask
+flask-cors
+pikepdf
+anthropic
+python-dotenv
+gunicorn
