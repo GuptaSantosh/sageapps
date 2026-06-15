@@ -225,9 +225,6 @@ def handle_start(chat_id, user_id, first_name):
 
 
 def handle_auth(chat_id, user_id):
-    if has_gmail_token(user_id):
-        send(chat_id, "✅ Your Gmail is already connected. Send /brief to get your brief.")
-        return
     try:
         auth_url = get_auth_url(user_id)
         send(chat_id, f"""🔐 *Connect your Gmail*
