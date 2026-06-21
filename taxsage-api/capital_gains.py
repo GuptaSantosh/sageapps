@@ -13,9 +13,12 @@ LTCG_EXEMPTION = 125000
 # --- Claude prompts ---
 
 KUVERA_SYSTEM = "You are a financial document parser. Extract equity capital gains totals from a Kuvera Capital Gains Statement."
+# Kuvera's combined "Total" includes equity + debt — must use "Equity Sub Total" to avoid debt mixing
 KUVERA_PROMPT = """From this Kuvera Capital Gains Statement, extract from the SUMMARY section only (not per-fund rows).
+For LTCG: use the "Equity Sub Total" line specifically — NOT the combined "Total" which includes debt gains.
+For STCG: use the equity short term sub total from the summary, not the combined total.
 Return ONLY this JSON, no other text:
-{"stcg_total": <integer rupees, 0 if none>, "ltcg_total": <integer rupees, 0 if none>}"""
+{"stcg_total": <integer rupees equity sub total only, 0 if none>, "ltcg_total": <integer rupees equity sub total only, 0 if none>}"""
 
 CAMS_SYSTEM = "You are a financial document parser. Extract equity capital gains totals from a CAMS Capital Gain/Loss Statement."
 CAMS_PROMPT = """From the "Capital Gain/Loss \u2013 Overall Summary (Equity)" section ONLY.
@@ -161,7 +164,8 @@ def process(files: list, password: str) -> dict:
                                 "stcg": result["stcg"], "ltcg": result["ltcg"]})
 
     ltcg_taxable = max(0, net_ltcg - LTCG_EXEMPTION)
-    stcg_tax = int(net_stcg * STCG_RATE)
+    # Losses (negative net_stcg) are not taxed — preserve sign in output but apply zero tax
+    stcg_tax = int(net_stcg * STCG_RATE) if net_stcg > 0 else 0
     ltcg_tax = int(ltcg_taxable * LTCG_RATE)
 
     return {
