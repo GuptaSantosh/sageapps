@@ -1533,8 +1533,8 @@ function renderCGResults(data) {
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:20px;">
       <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
         <div style="font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:#64748b;
-             margin-bottom:6px; letter-spacing:0.06em; text-transform:uppercase;">Net STCG</div>
-        <div style="font-family:'Playfair Display',serif; font-size:1.4rem; color:#fbbf24;">${fINR(data.net_stcg)}</div>
+             margin-bottom:6px; letter-spacing:0.06em; text-transform:uppercase;">${data.net_stcg < 0 ? 'Net STCG (Loss)' : 'Net STCG'}</div>
+        <div style="font-family:'Playfair Display',serif; font-size:1.4rem; color:${data.net_stcg < 0 ? '#4ade80' : '#fbbf24'};">${data.net_stcg < 0 ? '-' : ''}${fINR(data.net_stcg)}</div>
       </div>
       <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
         <div style="font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:#64748b;
