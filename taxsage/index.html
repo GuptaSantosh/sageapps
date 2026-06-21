@@ -54,7 +54,7 @@ nav {
 .nav-cta { background: var(--amber) !important; color: var(--navy) !important; padding: .4rem 1rem; border-radius: 6px; font-weight: 500 !important; }
 
 /* HERO */
-.hero { padding: 116px 24px 52px; text-align: center; position: relative; overflow: hidden; }
+.hero { padding: 116px 24px 32px; text-align: center; position: relative; overflow: hidden; }
 .hero-glow { display: none; }
 .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .18; animation: float 10s ease-in-out infinite; }
 .o1 { width: 320px; height: 320px; background: #d4963a; top: -5%; left: -8%; }
@@ -236,6 +236,7 @@ footer a { color: var(--amber); text-decoration: none; }
   <div class="orb o1"></div>
   <div class="orb o2"></div>
   <div class="hero-content">
+    <!-- UPDATE BADGE count when Capital Gains Summary ships -->
     <div class="hero-badge"><span class="badge-dot"></span>2 free tools · live now · FY 2025-26</div>
     <h1>File your ITR with<br><em>zero surprises</em></h1>
     <p class="hero-sub">Know your regime. Scan your AIS. Catch what triggers notices — before you file.</p>
@@ -245,34 +246,51 @@ footer a { color: var(--amber); text-decoration: none; }
 
 <!-- TOOL CARDS -->
 <style>
-@media (max-width:600px) { .tool-cards { grid-template-columns: 1fr !important; } }
-@media (max-width:640px) { .tool-cards button { padding: 10px 16px !important; } }
+@media (max-width:700px) { .tool-cards { grid-template-columns: 1fr !important; } }
+@media (max-width:700px) { .tool-cards button { padding: 10px 16px !important; } }
 </style>
-<div class="tool-cards" style="max-width:720px; margin:0 auto 40px; padding:0 20px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+<div class="tool-cards" style="max-width:1060px; margin:0 auto 28px; padding:0 24px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
 
-  <div style="background:#0f172a; border:2px solid #d4963a; border-radius:12px; padding:22px;">
+  <!-- 1. Regime Calculator -->
+  <div style="background:#0f172a; border:2px solid #d4963a; border-radius:12px; padding:22px; display:flex; flex-direction:column;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
       <span style="font-size:1.4rem;">⚖️</span>
       <span style="font-family:'JetBrains Mono',monospace; font-size:0.65rem; font-weight:600; letter-spacing:0.06em; background:#d4963a22; color:#d4963a; border:1px solid rgba(212,150,58,.3); padding:3px 9px; border-radius:20px;">LIVE</span>
     </div>
-    <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:#f0f4ff; margin-bottom:8px;">Regime Calculator</div>
-    <p style="color:#6b7fa3; font-size:0.82rem; line-height:1.55; margin-bottom:16px;">Old vs new with your real salary, NPS, HRA. 2 minutes.</p>
+    <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:#f0f4ff; margin-bottom:6px;">Regime Calculator + ITR Type</div>
+    <p style="color:#6b7fa3; font-size:0.82rem; line-height:1.55; margin-bottom:16px; flex:1;">Old vs new with your real salary, NPS, HRA — plus which ITR form you need. 2 minutes.</p>
     <button onclick="document.querySelector('.calc-wrap').scrollIntoView({behavior:'smooth'})"
             style="width:100%; padding:10px; background:#d4963a; color:#0a0f1e; border:none; border-radius:7px; font-size:0.88rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif;">
       Calculate my tax
     </button>
   </div>
 
-  <div style="background:#0f172a; border:2px solid #2dd4a0; border-radius:12px; padding:22px;">
+  <!-- 2. AIS Scanner -->
+  <div style="background:#0f172a; border:2px solid #2dd4a0; border-radius:12px; padding:22px; display:flex; flex-direction:column;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
       <span style="font-size:1.4rem;">🔍</span>
-      <span style="font-family:'JetBrains Mono',monospace; font-size:0.65rem; font-weight:600; letter-spacing:0.06em; background:rgba(45,212,160,0.1); color:#2dd4a0; border:1px solid rgba(45,212,160,.3); padding:3px 9px; border-radius:20px;">NEW</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:0.65rem; font-weight:600; letter-spacing:0.06em; background:rgba(45,212,160,0.1); color:#2dd4a0; border:1px solid rgba(45,212,160,.3); padding:3px 9px; border-radius:20px;">LIVE</span>
     </div>
-    <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:#f0f4ff; margin-bottom:8px;">AIS Scanner</div>
-    <p style="color:#6b7fa3; font-size:0.82rem; line-height:1.55; margin-bottom:16px;">Upload your AIS PDF. Every line flagged in plain English.</p>
+    <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:#f0f4ff; margin-bottom:6px;">AIS Scanner</div>
+    <p style="color:#6b7fa3; font-size:0.82rem; line-height:1.55; margin-bottom:16px; flex:1;">Upload your AIS PDF. Every TDS, SFT, and interest entry flagged in plain English.</p>
     <button onclick="document.getElementById('ais-scanner').scrollIntoView({behavior:'smooth'})"
             style="width:100%; padding:10px; background:#2dd4a0; color:#0a0f1e; border:none; border-radius:7px; font-size:0.88rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif;">
       Scan my AIS
+    </button>
+  </div>
+
+  <!-- 3. Capital Gains Summary — COMING SOON -->
+  <!-- UPDATE: remove disabled + swap badge to LIVE + enable button onclick when built -->
+  <div style="background:#0f172a; border:1px dashed #334155; border-radius:12px; padding:22px; display:flex; flex-direction:column; opacity:0.75;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+      <span style="font-size:1.4rem;">📊</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:0.65rem; font-weight:600; letter-spacing:0.06em; background:rgba(212,150,58,0.08); color:#94a3b8; border:1px solid #334155; padding:3px 9px; border-radius:20px;">SOON</span>
+    </div>
+    <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:#94a3b8; margin-bottom:6px;">Capital Gains Summary</div>
+    <p style="color:#475569; font-size:0.82rem; line-height:1.55; margin-bottom:16px; flex:1;">Upload Zerodha P&L + CAMS. Get net LTCG, STCG, tax owed, and ₹1.25L exemption used.</p>
+    <button disabled
+            style="width:100%; padding:10px; background:#1e293b; color:#475569; border:1px solid #334155; border-radius:7px; font-size:0.88rem; font-weight:700; cursor:not-allowed; font-family:'DM Sans',sans-serif;">
+      Coming July 15
     </button>
   </div>
 
