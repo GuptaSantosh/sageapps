@@ -475,6 +475,36 @@ footer a { color: var(--amber); text-decoration: none; }
       </div>
       <div class="field-hint">F&O or consulting = business income. ITR-3 mandatory regardless of other factors.</div>
     </div>
+
+    <hr class="field-divider">
+    <span class="section-label">// itr form — additional inputs</span>
+
+    <div class="field">
+      <div class="field-label">Capital gains this year (equity, MF, property)</div>
+      <div class="input-wrap">
+        <span class="input-pfx">₹</span>
+        <input type="number" class="num-input" id="capGains" placeholder="0" value="0" oninput="calc()">
+      </div>
+      <div class="field-hint">LTCG u/s 112A ≤₹1.25L qualifies for ITR-1; anything above or any STCG requires ITR-2. Enter combined amount.</div>
+    </div>
+
+    <div class="field">
+      <div class="field-label" style="margin-bottom:.45rem">Foreign assets or income?</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" onclick="tog('foreign','no',this)">No</button>
+        <button class="toggle-btn" onclick="tog('foreign','yes',this)">Yes</button>
+      </div>
+      <div class="field-hint">Foreign bank accounts, RSUs/ESOPs from overseas employer, foreign MFs. Schedule FA in ITR-2 is mandatory.</div>
+    </div>
+
+    <div class="field">
+      <div class="field-label" style="margin-bottom:.45rem">Net worth above ₹50L?</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" onclick="tog('networth','no',this)">No</button>
+        <button class="toggle-btn" onclick="tog('networth','yes',this)">Yes</button>
+      </div>
+      <div class="field-hint">Includes property, equity portfolio, vehicles, gold, FDs — less loans. Schedule AL required if yes.</div>
+    </div>
   </div>
 
   <!-- RESULT -->
@@ -509,6 +539,7 @@ footer a { color: var(--amber); text-decoration: none; }
       <span id="itrReason">Salaried — simple income</span>
       <span class="itr-pill" id="itrPill">ITR-1</span>
     </div>
+    <div id="itrFlags"></div>
 
     <div class="actions-label">before you file →</div>
     <div id="actList"></div>
@@ -523,7 +554,7 @@ footer a { color: var(--amber); text-decoration: none; }
 </footer>
 
 <script>
-const S = { city: 'metro', nps: 'no', prop: '1', fo: 'no' };
+const S = { city: 'metro', nps: 'no', prop: '1', fo: 'no', foreign: 'no', networth: 'no' };
 let salaryVal = 2500000;
 
 function tog(k,v,btn) {
@@ -668,15 +699,39 @@ function calc() {
 }
 
 function buildITR(sal,other,S) {
-  const p=parseInt(S.prop)||1;
-  let form='ITR-1',reason='Salaried — simple income',is3=false;
-  if(S.fo==='yes'){form='ITR-3';reason='F&O / freelance = business income → ITR-3';is3=true;}
-  else if(p>=2||S.prop==='3p'){form='ITR-2';reason='Multiple properties → Schedule HP required';}
-  else if(sal>2000000||other>50000){form='ITR-2';reason='Income profile → likely capital gains or foreign assets';}
-  else if(other>0){form='ITR-2';reason='Other income declared → ITR-2 is safer';}
+  const capGains = +(document.getElementById('capGains').value) || 0;
+  const totalIncome = sal + other + capGains;
+  const p = parseInt(S.prop) || 1;
+  let form='ITR-1', reason='Salaried, one property, income ≤₹50L — ITR-1 eligible', is3=false;
+
+  if (S.fo==='yes') {
+    form='ITR-3'; reason='F&O / business income — ITR-3 mandatory'; is3=true;
+  } else if (capGains > 125000) {
+    form='ITR-2'; reason=`Capital gains ${fL(capGains)} exceed ₹1.25L exemption — Schedule CG required`;
+  } else if (p>=2 || S.prop==='3p') {
+    form='ITR-2'; reason='Multiple properties — Schedule HP required';
+  } else if (S.foreign==='yes') {
+    form='ITR-2'; reason='Foreign assets or income — Schedule FA mandatory in ITR-2';
+  } else if (totalIncome > 5000000) {
+    form='ITR-2'; reason='Total income >₹50L — ITR-2 required';
+  } else if (capGains > 0) {
+    form='ITR-2'; reason='Capital gains must be declared in Schedule CG — ITR-2 needed';
+  } else if (other > 0) {
+    form='ITR-2'; reason='Other income declared — ITR-2 safer for Schedule OS';
+  }
+
   document.getElementById('itrPill').textContent=form;
   document.getElementById('itrPill').className='itr-pill'+(is3?' itr3':'');
   document.getElementById('itrReason').textContent=reason;
+
+  const flags=[];
+  if (S.networth==='yes' || totalIncome>5000000)
+    flags.push('Schedule AL required — declare all assets & liabilities at cost.');
+  if (S.foreign==='yes')
+    flags.push('Schedule FA required — list all foreign bank accounts, RSUs, and overseas assets.');
+  document.getElementById('itrFlags').innerHTML=flags.map(f=>
+    `<div class="action-row warn"><span class="arr">→</span><span>${f}</span></div>`
+  ).join('');
 }
 
 function buildActions(sal,S,newWins,npsEmp,other,meal) {
