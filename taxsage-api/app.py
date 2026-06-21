@@ -4,7 +4,9 @@ import sqlite3
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+import anthropic
 import ais_scanner
+import capital_gains
 
 load_dotenv()
 
@@ -49,6 +51,36 @@ def capture_lead():
             (email, feature, datetime.now(timezone.utc).isoformat())
         )
     return jsonify({"ok": True}), 200
+
+
+@app.route("/capital-gains-summary", methods=["POST"])
+def capital_gains_summary():
+    files_storage = request.files.getlist("files[]")
+    pan = request.form.get("pan", "").strip()
+    dob = request.form.get("dob", "").strip()
+
+    if not files_storage:
+        return jsonify({"error": "missing_files", "message": "Upload at least one file."}), 400
+
+    password = pan.lower() + dob if pan and dob else ""
+    files = [(f.filename, f.read()) for f in files_storage]
+
+    try:
+        return jsonify(capital_gains.process(files, password))
+    except ValueError as e:
+        msg = str(e)
+        if msg == "wrong_password":
+            return jsonify({"error": "wrong_password",
+                            "message": "Couldn't open this file — check PAN and DOB."}), 200
+        if msg.startswith("claude_parse_failed"):
+            return jsonify({"error": "parse_failed",
+                            "message": "Could not extract capital gains data. Please try again."}), 200
+        if msg.startswith("unsupported_file:"):
+            return jsonify({"error": "unsupported_file",
+                            "message": f"{msg.split(':',1)[1]} — only .xlsx and .pdf accepted."}), 200
+        return jsonify({"error": "error", "message": msg}), 200
+    except anthropic.APIError as e:
+        return jsonify({"error": "api_error", "detail": str(e)}), 200
 
 
 @app.route("/scan", methods=["POST"])

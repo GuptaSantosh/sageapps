@@ -3,3 +3,4 @@ pikepdf
 anthropic
 python-dotenv
 gunicorn
+openpyxl
