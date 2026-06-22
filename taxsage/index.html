@@ -278,7 +278,6 @@ footer a { color: var(--amber); text-decoration: none; }
     </button>
   </div>
 
-  <!-- 3. Capital Gains Summary — COMING SOON -->
   <!-- 3. Capital Gains Summary -->
   <div style="background:#0f172a; border:2px solid #2dd4a0; border-radius:12px; padding:22px; display:flex; flex-direction:column;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
@@ -870,6 +869,12 @@ calc();
   font-style: italic;
 }
 .feat-card.live .feat-pain { border-left-color: var(--sage); }
+.feat-cta {
+  display: inline-block; margin-top: .8rem;
+  color: var(--sage); font-size: .82rem; text-decoration: none;
+  font-family: 'JetBrains Mono', monospace;
+}
+.feat-cta:hover { text-decoration: underline; }
 
 /* Email capture */
 .email-capture {
@@ -1110,17 +1115,18 @@ calc();
   <div class="coming-header">
     <span class="coming-eyebrow">// what's next</span>
     <h2 class="coming-title">TaxSage is just getting<br><em>started</em></h2>
-    <p class="coming-sub">Two tools live. Four more coming before July 15.</p>
+    <p class="coming-sub">Three tools live. Three more coming before July 15.</p>
   </div>
 
   <div class="feat-grid">
 
-    <!-- Capital Gains Summary -->
-    <div class="feat-card soon">
+    <!-- Capital Gains Summary — LIVE -->
+    <div class="feat-card live">
       <span class="feat-icon">📊</span>
       <div class="feat-name">Capital Gains Summary</div>
       <div class="feat-desc">Upload your Zerodha tax P&L and Kuvera/CAMS statement. Get net LTCG, STCG, tax owed, and exactly how much of the ₹1.25L exemption you've used.</div>
       <div class="feat-pain">"I had ₹2.2L LTCG across stocks and MFs but didn't realise I had ₹29K in losses to offset. Ended up overpaying tax."</div>
+      <a href="#capital-gains" class="feat-cta">Try free →</a>
     </div>
 
     <!-- Pre-filing Checklist -->
@@ -1153,8 +1159,8 @@ calc();
   <div class="email-capture">
     <div class="email-capture-title">Get early access</div>
     <div class="email-capture-sub">
-      AIS Scanner and Capital Gains Summary launch before July 15 —
-      before the ITR filing rush. Be first to know.
+      Pre-filing Checklist, Advance Tax Calculator, and Tax Harvest Alerts
+      coming before July 15 — before the ITR filing rush. Be first to know.
     </div>
     <form class="email-form" id="earlyForm"
           action="https://docs.google.com/forms/d/e/1FAIpQLSc2OgNpr7BbzJpSFKaVMrTQDBBFz7xwYG-4G_hNMEbaDXECSQ/formResponse"
