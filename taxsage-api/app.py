@@ -100,6 +100,7 @@ def scan():
     return jsonify(result)
 
 
+@app.route("/admin/leads", methods=["GET"])
 @app.route("/taxsage-api/admin/leads", methods=["GET"])
 def admin_leads():
     token = request.args.get("token", "")
