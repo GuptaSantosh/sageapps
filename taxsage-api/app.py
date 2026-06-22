@@ -1,8 +1,9 @@
 import io
+import os
 import re
 import sqlite3
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from dotenv import load_dotenv
 import anthropic
 import ais_scanner
@@ -97,6 +98,35 @@ def scan():
 
     result = ais_scanner.scan(pdf_bytes, password)
     return jsonify(result)
+
+
+@app.route("/taxsage-api/admin/leads", methods=["GET"])
+def admin_leads():
+    token = request.args.get("token", "")
+    if not token or token != os.environ.get("ADMIN_TOKEN", ""):
+        return make_response("403 Forbidden", 403)
+
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute(
+            "SELECT email, feature, created_at FROM leads ORDER BY id DESC"
+        ).fetchall()
+
+    total = len(rows)
+    rows_html = "\n".join(
+        f"<tr><td>{r[0]}</td><td>{r[1] or ''}</td><td>{r[2]}</td></tr>"
+        for r in rows
+    )
+    html = f"""<!doctype html><html><head><meta charset=utf-8>
+<title>TaxSage Leads</title>
+<style>body{{font-family:monospace;padding:2rem;}}
+table{{border-collapse:collapse;width:100%;}}
+th,td{{border:1px solid #ccc;padding:6px 12px;text-align:left;}}
+th{{background:#f4f4f4;}}</style></head><body>
+<h2>TaxSage Leads ({total})</h2>
+<table><tr><th>Email</th><th>Feature</th><th>Timestamp (UTC)</th></tr>
+{rows_html}
+</table></body></html>"""
+    return make_response(html, 200)
 
 
 if __name__ == "__main__":
