@@ -1,5 +1,5 @@
 # sageApps — Master Reference & Action Tracker
-*Last updated: May 4, 2026 | Built with Claude*
+*Last updated: June 21, 2026 | Built with Claude*
 
 ---
 
@@ -230,10 +230,82 @@ Priority order (May 2026):
 - **Edge:** India-specific documents, privacy-first (no doc stored after processing)
 
 #### TaxSage
+- **Status:** Live at sageapps.in/taxsage. Two tools live: Regime Calculator + AIS Scanner.
 - **Value prop:** ITR prep assistant, capital gains from CAS, tax-loss harvesting, Form 26AS check
-- **Price:** ₹199–499/mo (peaks Jan–July)
-- **Cross-app:** Automatically reads FinSage portfolio + MailSage CG statement emails
+- **Price:** Free during beta. Planned: ₹199–499/mo or ~₹299/year (peaks Jan–July)
+- **Cross-app:** Automatically reads FinSage portfolio + MailSage CG statement emails (not yet built)
 - **Competitors:** ClearTax, Quicko — neither has AI advisor layer
+
+**Regime Calculator** — live, free forever
+- Old vs new regime, correct FY 2025-26 math
+- Employer NPS (both regimes) + personal NPS (old only, 80CCD 1B)
+- HRA 3-way minimum, labour codes 50% basic assumption
+- Meal coupons tax-free perquisite both regimes
+- Salary slider ₹3L–₹2Cr + manual override
+- Schedule AL flag >₹50L, ITR-3 flag for F&O
+
+**AIS Scanner — live, June 2026**
+- **Architecture:** Flask backend (taxsage-api) on droplet port 5003, separate from 
+  static GitHub Pages frontend. Frontend form lives in taxsage/index.html.
+- **Flow:** User uploads AIS PDF + enters PAN + DOB → password constructed as 
+  `pan.lower() + dob(DDMMYYYY)` → pikepdf decrypts in memory → decrypted PDF sent 
+  to Claude API as document block → Claude (claude-sonnet-4-6) returns structured 
+  JSON flags → rendered as red/yellow/green cards on frontend.
+- **No storage:** PDF, PAN, DOB never written to disk — memory only, discarded after response.
+- **Files:** taxsage-api/app.py (Flask route, CORS removed — handled at nginx), 
+  taxsage-api/ais_scanner.py (decrypt + Claude call + JSON parse), 
+  taxsage-api/requirements.txt, taxsage-api/taxsage.conf (supervisorctl)
+- **Deploy:** /home/taxsage/taxsage-api/ on droplet, git-connected, gunicorn -w 2 -t 120
+- **nginx:** api.sageapps.in/taxsage-api/ → proxy to localhost:5003, 
+  proxy_read_timeout 120s, CORS headers set at nginx level (not Flask-CORS — 
+  caused silent failures, removed)
+- **Flag categories covered:** Salary TDS-192, Dividend TDS-194/SFT-015, Business 
+  receipts TDS-194C (misclassification detector), Foreign remittance TCS-206CQ, 
+  Property TDS-194IA/SFT-012, Vehicle TCS-206CL, Savings/FD interest SFT-016, 
+  Equity sales SFT-017, MF redemptions SFT-018, Inactive entries (any section), 
+  Refunds B4, Tax payment challans B3
+- **Validated against:** Founder's own real AIS (14 sections, 3 red/8 yellow/3 green) 
+  — caught a real misfiled bank TDS entry (locker rent under 194C contractor code)
+
+**Bugs fixed during build (reference for similar issues):**
+- IT portal AIS JSON download is encrypted with non-standard crypto — 
+  standard PBKDF2/CryptoJS approaches failed. Abandoned JSON input, PDF-only for V1.
+- Gunicorn default 30s worker timeout killed requests mid-Claude-API-call → 
+  fixed with `-t 120`
+- nginx proxy_read_timeout defaulted to 60s, mismatched gunicorn's 120s → 
+  504 Gateway Timeout. Both must match.
+- Flask-CORS headers weren't reaching the browser through the nginx proxy → 
+  removed Flask-CORS entirely, set CORS headers directly in nginx location block
+- Error handling bug: frontend caught all non-200 responses as generic "Network 
+  error" instead of surfacing the actual server error message — fixed to parse 
+  JSON error body before throwing
+
+**Known open items / not yet built:**
+- Pre-filing Checklist — Schedule FA (foreign assets), Schedule AL (assets >₹50L), 
+  dividend declarations, TDS mismatch summary
+- Advance Tax Calculator — June 15/Sept 15/Dec 15/Mar 15 due dates, Telegram reminders
+- Tax Harvest Alerts — Feb portfolio scan for LTCG exemption optimization
+- AIS Scanner edge cases not yet tested: zero-entry AIS, F&O/business income sections, 
+  multi-employer salary year, very large multi-page PDFs (timeout behavior beyond 120s)
+- Paid tier not yet built — free regime calculator permanent, ~₹299/year for AIS 
+  Scanner + future features, potential FinSage+TaxSage bundle
+- Schedule FA paid one-off (₹99-249) — parked until user base exists, IndMoney/foreign 
+  holdings exports identified as input source when this gets scoped
+
+**Distribution (running in parallel, see separate session):**
+- Reddit: r/personalfinanceindia post live, 17+ upvotes, no removal. Strategy — 
+  pure value in post body (no link, avoids Rule 2 auto-flag), tool link added as 
+  a comment after the post gains traction.
+- Twitter: 5 tweets/week (Mon-Fri), rotating tip / story / result format, all 
+  under 280 chars, all include sageapps.in/taxsage link. Scheduled via Buffer 
+  free tier, set up Sundays.
+- Avoided: generic "drop your SaaS" / "builders connect" threads — wrong 
+  audience (other founders, not Indian taxpayers), engagement farming not 
+  distribution.
+- Target: 25 stranger scans by June 25 (tracked via `grep "POST /scan" 
+  /var/log/taxsage.out.log` on droplet, GA on sageapps.in/taxsage)
+- Urgency window: ITR filing deadline July 31 — TaxSage gets distribution 
+  priority over FinSage/CleanSage until then.
 
 ### 🔵 LATER
 
@@ -477,6 +549,301 @@ Never ask Claude Code to redesign — only execute what Claude Project scoped.
   limits with real users
 
 ## 9. Session Log
+
+### Session: June 22 2026 — Capital Gains Summary Built, Two Bugs Caught and 
+Fixed, ITR Detector + Lead Capture Shipped
+
+Outcome: Capital Gains Summary live end-to-end at sageapps.in/taxsage, 
+validated against founder's real Zerodha+Kuvera+CAMS files. ITR-type detector 
+and email lead capture also shipped this session. Index page redesigned to 
+3-tool layout.
+
+Scoped before building (same pattern as AIS Scanner): confirmed equity-only 
+scope, inspected real file structures (Zerodha xlsx sheet layout, Kuvera/CAMS 
+PDF formats, ruled out IndMoney US holdings as out-of-scope/Schedule FA 
+territory) before writing any parser code.
+
+Built: capital_gains.py (Zerodha xlsx parser, Kuvera/CAMS PDF parser via 
+Claude API, tax computation), new Flask route, frontend form + results UI, 
+ITR-type rules engine on Regime Calculator, email-gate lead capture (SQLite, 
+separate from scan data).
+
+Bugs caught via manual validation (see TaxSage section for detail): STCG 
+sign-loss bug, Kuvera equity/debt mixing bug. Both fixed and re-validated 
+against source files before shipping.
+
+Also discussed and explicitly parked: bank/UPI reconciliation aggregator 
+(AA-regulated, different company-scale problem), AIS-to-S3 storage for 
+"future customer use" (rejected outright — contradicts existing no-storage 
+privacy claim, real exposure given pseudonym/conflict-of-interest 
+constraint), crypto/GIFT City tax guide (real but niche, wait for demand 
+signal), Schedule FA paid guide (real demand confirmed via research, ₹10L 
+penalty fear driving CA spend — but wait for user base before building).
+
+Distribution: two Reddit posts drafted (r/personalfinanceindia — capital 
+gains reconciliation story; r/IndiaInvestments — Kuvera equity/debt mixing 
+technical finding), 5 Twitter posts drafted, scheduled for evening window 
+same day.
+
+Next session: check Reddit/Twitter response, decide on lead-capture gate 
+timing (upfront vs post-result) based on conversion data, validate ITR 
+detector against more edge cases (NRI, multiple house properties), consider 
+whether Pre-filing Checklist or Schedule FA paid guide is next build once 
+user signal exists.
+
+### Session: June 21 2026 — AIS Scanner Built, Shipped, Distribution Started
+
+Outcome: AIS Scanner live end-to-end at sageapps.in/taxsage. Reddit + Twitter 
+distribution running.
+
+Built:
+- Scoped AIS Scanner against founder's real AIS (5-page PDF, all sections read)
+- Decided PDF-only input for V1 — IT portal JSON download uses non-standard 
+  encryption, abandoned after multiple decryption attempts failed
+- Wrote and validated Claude prompt (flag rules per AIS section, JSON output schema)
+- Built taxsage-api Flask service: app.py + ais_scanner.py (pikepdf decrypt + 
+  Claude API call + JSON parse)
+- Deployed to droplet port 5003, supervisorctl-managed, git-connected
+- nginx reverse proxy at api.sageapps.in/taxsage-api/
+- Frontend upload form + flag card rendering added to taxsage/index.html
+
+Bugs hit and fixed (in order):
+1. CORS blocked — Flask-CORS headers not reaching browser through nginx proxy 
+   → moved CORS handling to nginx location block, removed Flask-CORS
+2. 500 error — gunicorn default 30s timeout killed worker mid Claude-API-call 
+   → added `-t 120` to gunicorn command
+3. 504 Gateway Timeout — nginx proxy_read_timeout still at 60s after gunicorn 
+   fix → bumped to 120s to match
+
+Validated: scanned founder's own AIS — 14 sections flagged (3 red/8 yellow/3 
+green), correctly caught a real misclassified bank TDS entry (locker rent 
+filed under 194C contractor code instead of correct section).
+
+Page redesign:
+- Restructured hero: "File your ITR with zero surprises" + "2 free tools live now" badge
+- Added two-tool-card layout (Regime Calculator + AIS Scanner) above the fold
+- Added sample scan output preview before the actual upload form
+- Removed AIS Scanner / Regime Calculator from coming-soon grid (now live)
+- Flattened gradient background, nav CTA changed to "Try free →"
+
+Distribution started:
+- Reddit r/personalfinanceindia: pure-value post (AIS mismatch story), 17+ 
+  upvotes, no mod removal. Tool link added separately as a comment to avoid 
+  Rule 2 auto-flag on self-promotion.
+- Twitter: 5-tweet/week cadence drafted (tip/story/result rotation), all 
+  under 280 chars, scheduled via Buffer
+- Explicitly ruled out generic builder-community engagement-farming threads — 
+  wrong audience for an Indian tax tool
+- Second Reddit post queued for r/IndiaInvestments (capital gains AIS checklist)
+
+Next session: scope Capital Gains Summary feature (Zerodha Tax P&L + 
+Kuvera/CAMS upload → net LTCG/STCG + tax owed). Check stranger-scan count 
+against June 25 target (25 scans) before deciding next feature priority.
+
+### Session: June 10 2026 — TaxSage V1 Shipped + Distributed
+
+Outcome: Full product live at sageapps.in/taxsage
+
+Built:
+- Regime calculator — correct FY 2025-26 tax math
+- Employer NPS (both regimes) + personal NPS (old only)
+- HRA 3-way minimum, labour codes 50% basic assumption
+- Meal coupons as tax-free perquisite both regimes
+- Salary slider ₹3L–₹2Cr + manual override
+- Coming soon section — 6 feature cards with pain quotes
+- Email capture wired to existing Google Form
+- Google Analytics added to both pages
+- Mobile layout fixed — inputs first, no sticky on mobile
+- Nav hidden on mobile
+
+Distributed:
+- IIM batch WhatsApp — sent
+- Twitter/X — posted, daily content plan set
+- Reddit comment seeding — started
+
+Results day 1:
+- 4 Google Analytics visitors
+- Comments asking for bots
+- Reddit seeding started
+
+Next build priority:
+1. AIS Scanner — upload AIS, plain English flags per section
+2. Capital Gains Summary — Zerodha + Kuvera upload → tax owed
+3. Target: live before July 15
+
+### Session 10 Jun 2026 - finsage
+Macro overlay feature — shipped and tested (previous session carry)
+
+Onboarding unification — Instructions 1-9 applied:
+- Unified /start flow with returning user detection
+- has_holdings() guard on all onboarding states  
+- send_portfolio_setup() reusable module
+- /setcash isolated state, no longer collides with onboarding
+- /deploy and /portfolio use has_holdings() directly
+
+Bugs found and fixed:
+- set_onboarding_step() vs user["step"] direct assignment
+- portfolio nested at user["portfolio"] not user root
+- Local variable has_holdings shadowing module function (commit 29ff3bd)
+
+Data incident:
+- Diagnostic script wrote raw JSON bypassing encryption
+- save_user() overwrote with empty holdings on next bot call
+- Root cause: direct file access bypasses _encrypt() in database.py
+- Fix: CLAUDE.md rule added — never touch user_*.json directly
+- Recovery: portfolio reloaded via save_user() correctly
+
+All commands verified working: /brief, /deploy, /portfolio, /setcash, /macro
+
+
+### Session: May 31 2026 — TaxSage V1 Shipped
+
+Outcome: Full product live at sageapps.in/taxsage
+
+Built:
+- Regime calculator (old vs new, correct tax math FY 2025-26)
+- Employer NPS (both regimes) + personal NPS (old only) — correctly split  
+- HRA 3-way minimum with labour codes 50% basic assumption
+- Meal coupons as tax-free perquisite — both regimes
+- Salary slider ₹3L–₹2Cr + manual override for higher salaries
+- Schedule AL flag >₹50L, ITR-3 flag for F&O
+- Coming soon section — 6 feature cards with pain quotes
+- Email capture wired to existing Google Form waitlist
+- Nav link, hero badge, card updated on sageapps.in
+- Pricing: Free during beta (changed from wrong ₹199/month)
+
+Distributed:
+- IIM batch WhatsApp — sent
+- Twitter/X — posted
+
+Next session:
+- Watch for first stranger email signup
+- Watch WhatsApp responses for UX feedback  
+- Build AIS Scanner if July 15 deadline is still target
+- Update master doc in fresh chat
+
+**Capital Gains Summary — live, June 2026**
+- **Architecture:** Same taxsage-api Flask service (port 5003), new file 
+  capital_gains.py, route POST /taxsage-api/capital-gains-summary
+- **Inputs:** Zerodha Tax P&L (.xlsx, openpyxl cell read, no Claude call needed — 
+  Zerodha pre-computes ST/LT split), Kuvera Capital Gains Statement (.pdf), 
+  CAMS Capital Gain/Loss Statement (.pdf) — up to 3 files combined per request
+- **Scope:** Equity only (stocks + equity MF). Debt fund gains shown as unlabeled 
+  line, not taxed — debt is slab-dependent, deliberately out of v1 scope
+- **Tax logic:** LTCG 12.5% above ₹1.25L exemption, STCG flat 20%, losses excluded 
+  from tax (sign-aware)
+- **No storage:** same memory-only pattern as AIS Scanner — PDFs, PAN, DOB never 
+  written to disk
+- **Validated against:** founder's own Zerodha + Kuvera + CAMS files for FY 2025-26. 
+  Net LTCG ₹2,26,058, net STCG -₹29,891 (loss), tax owed ₹12,632 — confirmed by 
+  hand against source documents
+
+**Bugs found and fixed during build:**
+- STCG sign bug: process() was dropping the negative sign on losses, taxing a 
+  -₹29,891 short-term loss as if it were a ₹29,891 gain (would have charged 
+  ₹5,978 tax on a loss). Fixed: tax only applied when net_stcg > 0.
+- Kuvera equity/debt mixing bug: Kuvera's PDF headline "Long Term Capital Gains" 
+  figure combines Equity Sub Total + Debt Sub Total. Extraction prompt was pulling 
+  the combined number, overstating LTCG by the debt portion (₹16,769 in test case) 
+  and incorrectly taxing debt gains at the equity 12.5% rate. Fixed: prompt now 
+  extracts "Equity Sub Total" specifically. CAMS was unaffected — it already 
+  separates Equity/Non-Equity into distinct summary sections.
+- This is the third instance of the "silent wrong-data" pattern (after the AIS 
+  194C misclassification catch and the FinSage refreshscores/exclusion-filter 
+  bugs) — confirms manual validation against real source files before shipping 
+  any data-extraction feature is non-negotiable, not optional.
+
+**ITR-type detector — live, validated June 2026**
+- Client-side JS, no API call, bolted onto Regime Calculator output
+- Rules: ITR-1 (salary/pension, ≤₹50L, LTCG ≤₹1.25L, no foreign assets/F&O/biz), 
+  ITR-2 (capital gains beyond ITR-1 threshold, multiple properties, foreign 
+  assets, >₹50L), ITR-3 (any business/F&O income). Schedule AL flag >₹50L net 
+  worth, Schedule FA flag if foreign assets
+- Validated against founder's own profile — correctly returns ITR-2 given 
+  real capital gains figures
+
+**Lead capture — live, June 2026**
+- Email-gate modal before AIS Scanner / Capital Gains Summary access, 
+  sessionStorage flag prevents re-prompt same session
+- Backend: new SQLite leads.db on taxsage-api (email, feature, created_at) — 
+  separate from scan data, which remains memory-only/never stored
+- Open question, not yet resolved: gate is mandatory-upfront (asks before any 
+  value is shown), flagged as a possible friction risk against early Reddit 
+  traffic — watch scan-to-visit ratio over the next week, consider moving to 
+  post-result gate if conversion looks suppressed
+
+**Index page — redesigned June 2026**
+- 3-tool card layout (Regime Calculator, AIS Scanner, Capital Gains Summary), 
+  all live, badge updated "2 free tools" → "3 free tools"
+- Hero tightened, max-width 720px → 1060px, 2-col → 3-col, mobile breakpoint 
+  updated to 700px
+
+**Capital Gains Summary — live, June 2026**
+- **Architecture:** Same taxsage-api Flask service (port 5003), new file 
+  capital_gains.py, route POST /taxsage-api/capital-gains-summary
+- **Inputs:** Zerodha Tax P&L (.xlsx, openpyxl cell read, no Claude call needed — 
+  Zerodha pre-computes ST/LT split), Kuvera Capital Gains Statement (.pdf), 
+  CAMS Capital Gain/Loss Statement (.pdf) — up to 3 files combined per request
+- **Scope:** Equity only (stocks + equity MF). Debt fund gains shown as unlabeled 
+  line, not taxed — debt is slab-dependent, deliberately out of v1 scope
+- **Tax logic:** LTCG 12.5% above ₹1.25L exemption, STCG flat 20%, losses excluded 
+  from tax (sign-aware)
+- **No storage:** same memory-only pattern as AIS Scanner — PDFs, PAN, DOB never 
+  written to disk
+- **Validated against:** founder's own Zerodha + Kuvera + CAMS files for FY 2025-26. 
+  Net LTCG ₹2,26,058, net STCG -₹29,891 (loss), tax owed ₹12,632 — confirmed by 
+  hand against source documents
+
+**Bugs found and fixed during build:**
+- STCG sign bug: process() was dropping the negative sign on losses, taxing a 
+  -₹29,891 short-term loss as if it were a ₹29,891 gain (would have charged 
+  ₹5,978 tax on a loss). Fixed: tax only applied when net_stcg > 0.
+- Kuvera equity/debt mixing bug: Kuvera's PDF headline "Long Term Capital Gains" 
+  figure combines Equity Sub Total + Debt Sub Total. Extraction prompt was pulling 
+  the combined number, overstating LTCG by the debt portion (₹16,769 in test case) 
+  and incorrectly taxing debt gains at the equity 12.5% rate. Fixed: prompt now 
+  extracts "Equity Sub Total" specifically. CAMS was unaffected — it already 
+  separates Equity/Non-Equity into distinct summary sections.
+- This is the third instance of the "silent wrong-data" pattern (after the AIS 
+  194C misclassification catch and the FinSage refreshscores/exclusion-filter 
+  bugs) — confirms manual validation against real source files before shipping 
+  any data-extraction feature is non-negotiable, not optional.
+
+**ITR-type detector — live, validated June 2026**
+- Client-side JS, no API call, bolted onto Regime Calculator output
+- Rules: ITR-1 (salary/pension, ≤₹50L, LTCG ≤₹1.25L, no foreign assets/F&O/biz), 
+  ITR-2 (capital gains beyond ITR-1 threshold, multiple properties, foreign 
+  assets, >₹50L), ITR-3 (any business/F&O income). Schedule AL flag >₹50L net 
+  worth, Schedule FA flag if foreign assets
+- Validated against founder's own profile — correctly returns ITR-2 given 
+  real capital gains figures
+
+**Lead capture — live, June 2026**
+- Email-gate modal before AIS Scanner / Capital Gains Summary access, 
+  sessionStorage flag prevents re-prompt same session
+- Backend: new SQLite leads.db on taxsage-api (email, feature, created_at) — 
+  separate from scan data, which remains memory-only/never stored
+- Open question, not yet resolved: gate is mandatory-upfront (asks before any 
+  value is shown), flagged as a possible friction risk against early Reddit 
+  traffic — watch scan-to-visit ratio over the next week, consider moving to 
+  post-result gate if conversion looks suppressed
+
+**Index page — redesigned June 2026**
+- 3-tool card layout (Regime Calculator, AIS Scanner, Capital Gains Summary), 
+  all live, badge updated "2 free tools" → "3 free tools"
+- Hero tightened, max-width 720px → 1060px, 2-col → 3-col, mobile breakpoint 
+  updated to 700px
+
+###Key Learnings & Principles ###
+- **Multi-source data combination is where bugs hide, not single-source parsing:** 
+  Zerodha parsing (deterministic cell reads) was clean on first pass. Both bugs 
+  in Capital Gains Summary came from combining/interpreting PDF summary figures 
+  (sign handling, equity/debt mixing) — extra scrutiny warranted whenever a 
+  feature merges numbers across input sources rather than reading one cleanly 
+  structured file.
+
+
+Finsage
 ### Session 28 May 2026 (continued)
 - Macro overlay feature shipped: macro_engine.py + macro_config.json
 - /brief injection working (post-response append pattern)
