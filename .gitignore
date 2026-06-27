@@ -6,3 +6,6 @@ venv/
 __pycache__/
 *.pyc
 token_*.json
+.DS_Store
+.DS_Store
+*.pdf
