@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinSage — AI Portfolio Co-pilot for Indian Investors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0a0f1e;
+    --navy-mid: #0f1628;
+    --navy-card: #131c35;
+    --navy-border: #1e2d50;
+    --amber: #d4963a;
+    --amber-light: #e8b460;
+    --amber-dim: rgba(212,150,58,0.12);
+    --white: #f0f4ff;
+    --muted: #6b7fa3;
+    --muted-light: #8fa0c0;
+    --green: #2dd4a0;
+    --red: #e05757;
+    --text: #c8d4f0;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--navy);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* NOISE TEXTURE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* TYPOGRAPHY */
+  .display { font-family: 'Playfair Display', serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* LAYOUT */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  section { position: relative; z-index: 1; }
+
+  /* ─── NAVBAR ─── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 18px 0;
+    background: rgba(10,15,30,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--navy-border);
+  }
+  nav .inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: -0.02em;
+  }
+  .logo span { color: var(--amber); }
+  nav a.cta-nav {
+    background: var(--amber);
+    color: var(--navy);
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 10px 22px;
+    border-radius: 6px;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: background 0.2s;
+  }
+  nav a.cta-nav:hover { background: var(--amber-light); }
+
+  /* ─── HERO ─── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 120px 0 80px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-grid { position: absolute; inset: 0; opacity: 0.03; background-image: linear-gradient(var(--navy-border) 1px, transparent 1px), linear-gradient(90deg, var(--navy-border) 1px, transparent 1px); background-size: 60px 60px; }
+  .hero-glow { position: absolute; top: -200px; right: -100px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(212,150,58,0.08) 0%, transparent 70%); pointer-events: none; }
+  .hero-glow-2 { position: absolute; bottom: -100px; left: -200px; width: 500px; height: 500px; background: radial-gradient(circle, rgba(45,100,200,0.06) 0%, transparent 70%); pointer-events: none; }
+
+  .hero-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--amber-dim);
+    border: 1px solid rgba(212,150,58,0.25);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--amber);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.1s ease forwards;
+  }
+  .hero-eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); animation: pulse 2s infinite; }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.2rem, 4vw, 3.4rem);
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--white);
+    letter-spacing: -0.03em;
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.2s ease forwards;
+  }
+  h1 em { font-style: normal; color: var(--amber); }
+
+  .hero-sub {
+    font-size: 1.1rem;
+    color: var(--muted-light);
+    line-height: 1.7;
+    margin-bottom: 36px;
+    max-width: 480px;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.3s ease forwards;
+  }
+
+  .hero-cta-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.4s ease forwards;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--amber);
+    color: var(--navy);
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 16px 28px;
+    border-radius: 8px;
+    text-decoration: none;
+    width: fit-content;
+    transition: all 0.2s;
+    letter-spacing: -0.01em;
+  }
+  .btn-primary:hover { background: var(--amber-light); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(212,150,58,0.25); }
+  .btn-primary svg { width: 18px; height: 18px; }
+  .sebi-inline {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+    line-height: 1.5;
+  }
+  .btn-secondary {
+    color: var(--muted-light);
+    font-size: 0.875rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.2s;
+  }
+  .btn-secondary:hover { color: var(--white); }
+
+  /* ─── TELEGRAM CHAT WIDGET ─── */
+  .chat-widget {
+    background: #1a1f2e;
+    border-radius: 20px;
+    border: 1px solid var(--navy-border);
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03);
+    opacity: 0;
+    animation: fadeUp 0.8s 0.5s ease forwards;
+  }
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: #141927;
+    border-bottom: 1px solid var(--navy-border);
+  }
+  .chat-avatar {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--amber), #c27a1a);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .chat-meta { flex: 1; }
+  .chat-name { font-size: 0.875rem; font-weight: 600; color: var(--white); }
+  .chat-status { font-size: 0.72rem; color: var(--green); display: flex; align-items: center; gap: 4px; }
+  .chat-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+
+  .chat-body { padding: 16px; display: flex; flex-direction: column; gap: 4px; min-height: 320px; }
+
+  .msg {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 4px 14px 14px 14px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    max-width: 90%;
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  .msg.beat1 { animation: msgAppear 0.4s 1.2s ease forwards; }
+  .msg.beat2 { animation: msgAppear 0.4s 2.8s ease forwards; }
+  .msg.beat3 { animation: msgAppear 0.4s 4.4s ease forwards; }
+
+  .msg-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--amber);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .msg-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+  .msg-ticker { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 600; color: var(--white); }
+  .msg-val { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .warn { color: var(--amber); }
+  .msg-divider { border: none; border-top: 1px solid var(--navy-border); margin: 8px 0; }
+  .msg-action { display: flex; align-items: flex-start; gap: 6px; margin-top: 4px; font-size: 0.8rem; color: var(--text); }
+  .msg-action::before { content: '›'; color: var(--amber); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .msg-time { font-size: 0.65rem; color: var(--muted); text-align: right; margin-top: 6px; }
+
+  .typing {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 4px 14px 14px 14px;
+    width: fit-content;
+    opacity: 0;
+  }
+  .typing.show1 { animation: msgAppear 0.3s 0.8s ease forwards, fadeOut 0.3s 1.1s ease forwards; }
+  .typing.show2 { animation: msgAppear 0.3s 2.4s ease forwards, fadeOut 0.3s 2.7s ease forwards; }
+  .typing.show3 { animation: msgAppear 0.3s 4.0s ease forwards, fadeOut 0.3s 4.3s ease forwards; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--muted); animation: dotBounce 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+
+  /* ─── ONBOARDING STRIP ─── */
+  .onboarding-strip {
+    background: var(--navy-card);
+    border-top: 1px solid var(--navy-border);
+    border-bottom: 1px solid var(--navy-border);
+    padding: 48px 0;
+  }
+  .onboarding-strip h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: var(--white);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .onboarding-strip p {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    position: relative;
+  }
+  .steps::before {
+    content: '';
+    position: absolute;
+    top: 20px; left: 12.5%; right: 12.5%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--navy-border) 20%, var(--navy-border) 80%, transparent);
+  }
+  .step { text-align: center; padding: 0 12px; }
+  .step-num {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--amber-dim);
+    border: 1px solid rgba(212,150,58,0.3);
+    color: var(--amber);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 12px;
+    position: relative;
+    z-index: 1;
+  }
+  .step-title { font-weight: 600; font-size: 0.875rem; color: var(--white); margin-bottom: 4px; }
+  .step-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+
+  /* ─── PAIN STRIP ─── */
+  .pain-strip {
+    padding: 80px 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(212,150,58,0.02) 50%, transparent 100%);
+  }
+  .pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .pain-card {
+    border: 1px solid var(--navy-border);
+    border-radius: 12px;
+    padding: 28px 24px;
+    background: var(--navy-card);
+    position: relative;
+    overflow: hidden;
+  }
+  .pain-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(224,87,87,0.4), transparent);
+  }
+  .pain-icon { font-size: 1.4rem; margin-bottom: 12px; }
+  .pain-card h4 { font-size: 0.95rem; font-weight: 600; color: var(--white); margin-bottom: 8px; line-height: 1.4; }
+  .pain-card p { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+
+  /* ─── SECTION HEADER ─── */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--amber);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .section-sub { font-size: 1rem; color: var(--muted-light); max-width: 520px; }
+
+  /* ─── HOW IT WORKS ─── */
+  .how { padding: 100px 0; }
+  .how-header { margin-bottom: 60px; }
+  .how-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; position: relative; }
+  .how-steps::before {
+    content: '';
+    position: absolute;
+    top: 28px; left: calc(16.66% + 20px); right: calc(16.66% + 20px);
+    height: 1px;
+    background: linear-gradient(90deg, var(--amber-dim), rgba(212,150,58,0.15), var(--amber-dim));
+  }
+  .how-step { position: relative; }
+  .how-step-num {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    color: var(--amber);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+  }
+  .how-step h3 { font-size: 1.05rem; font-weight: 600; color: var(--white); margin-bottom: 10px; }
+  .how-step p { font-size: 0.875rem; color: var(--muted); line-height: 1.7; }
+  .how-step .detail {
+    margin-top: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--amber);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .how-step .detail::before { content: ''; width: 16px; height: 1px; background: var(--amber); }
+
+  /* ─── FEATURES ─── */
+  .features { padding: 100px 0; background: linear-gradient(180deg, transparent, rgba(19,28,53,0.5) 50%, transparent); }
+  .features-header { margin-bottom: 56px; }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .feature-card {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 14px;
+    padding: 28px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, transform 0.3s;
+  }
+  .feature-card:hover { border-color: rgba(212,150,58,0.3); transform: translateY(-3px); }
+  .feature-card.featured {
+    border-color: rgba(212,150,58,0.25);
+    background: linear-gradient(135deg, var(--navy-card) 0%, rgba(212,150,58,0.04) 100%);
+  }
+  .feature-card.featured::before {
+    content: 'Core Feature';
+    position: absolute;
+    top: 14px; right: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--amber);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--amber-dim);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .feature-icon { font-size: 1.5rem; margin-bottom: 14px; }
+  .feature-card h3 { font-size: 0.975rem; font-weight: 600; color: var(--white); margin-bottom: 8px; }
+  .feature-card p { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+
+  /* ─── TESTIMONIALS ─── */
+  .testimonials { padding: 100px 0; }
+  .testimonials-header { margin-bottom: 56px; }
+  .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .testi-card {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 14px;
+    padding: 32px 28px;
+    position: relative;
+  }
+  .testi-quote {
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+    color: var(--amber);
+    opacity: 0.3;
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+  .testi-text {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.75;
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+  .testi-divider { border: none; border-top: 1px solid var(--navy-border); margin-bottom: 16px; }
+  .testi-name { font-weight: 600; font-size: 0.875rem; color: var(--white); }
+  .testi-role { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .testi-plan {
+    display: inline-flex;
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--amber);
+    background: var(--amber-dim);
+    border: 1px solid rgba(212,150,58,0.2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* ─── PRICING ─── */
+  .pricing { padding: 100px 0; }
+  .pricing-header { margin-bottom: 56px; }
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+  .price-card {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 16px;
+    padding: 32px 28px;
+    position: relative;
+  }
+  .price-card.popular {
+    border-color: rgba(212,150,58,0.4);
+    background: linear-gradient(160deg, var(--navy-card) 0%, rgba(212,150,58,0.06) 100%);
+    transform: scale(1.03);
+  }
+  .popular-badge {
+    position: absolute;
+    top: -1px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--amber);
+    color: var(--navy);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 0 0 8px 8px;
+  }
+  .price-for {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--amber);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .price-tier { font-size: 1.2rem; font-weight: 700; color: var(--white); margin-bottom: 6px; }
+  .price-amount {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: var(--white);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .price-amount span { font-size: 1rem; font-weight: 400; color: var(--muted); }
+  .price-desc { font-size: 0.8rem; color: var(--muted); margin-bottom: 24px; }
+  .price-divider { border: none; border-top: 1px solid var(--navy-border); margin-bottom: 20px; }
+  .price-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .price-features li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 0.82rem; color: var(--text); line-height: 1.4;
+  }
+  .price-features li::before {
+    content: '✓';
+    color: var(--green);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .price-features li.dim { color: var(--muted); }
+  .price-features li.dim::before { color: var(--muted); content: '–'; }
+  .btn-price {
+    display: block;
+    text-align: center;
+    padding: 13px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: 1px solid var(--navy-border);
+    color: var(--text);
+  }
+  .btn-price:hover { border-color: var(--amber); color: var(--amber); }
+  .btn-price.primary-price {
+    background: var(--amber);
+    color: var(--navy);
+    border-color: var(--amber);
+  }
+  .btn-price.primary-price:hover { background: var(--amber-light); }
+  .sebi-price { font-size: 0.7rem; color: var(--muted); text-align: center; margin-top: 8px; }
+
+  /* ─── FINAL CTA ─── */
+  .final-cta {
+    padding: 100px 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .final-cta::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px; height: 400px;
+    background: radial-gradient(ellipse, rgba(212,150,58,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .final-cta h2 { max-width: 600px; margin: 0 auto 16px; }
+  .final-cta p { color: var(--muted-light); margin-bottom: 36px; }
+  .cta-wrapper { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    border-top: 1px solid var(--navy-border);
+    padding: 40px 0;
+    background: var(--navy-mid);
+  }
+  .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .footer-left { display: flex; flex-direction: column; gap: 6px; }
+  .footer-logo { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--white); }
+  .footer-logo span { color: var(--amber); }
+  .footer-sebi { font-size: 0.72rem; color: var(--muted); max-width: 480px; line-height: 1.6; }
+  .footer-links { display: flex; gap: 20px; }
+  .footer-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--amber); }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes msgAppear {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeOut {
+    to { opacity: 0; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes dotBounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-4px); }
+  }
+
+  /* ─── MOBILE ─── */
+  @media (max-width: 768px) {
+    .hero-inner { grid-template-columns: 1fr; gap: 40px; }
+    .chat-widget { order: -1; }
+    .steps { grid-template-columns: repeat(2, 1fr); }
+    .steps::before { display: none; }
+    .pain-grid, .how-steps { grid-template-columns: 1fr; }
+    .how-steps::before { display: none; }
+    .feature-grid { grid-template-columns: repeat(2, 1fr); }
+    .testi-grid { grid-template-columns: 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .price-card.popular { transform: none; }
+    .footer-inner { flex-direction: column; }
+  }
+  @media (max-width: 480px) {
+    .feature-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="inner">
+    <div class="logo">Fin<span>Sage</span></div>
+    <a href="https://t.me/FinSageAI_bot?start=web" class="cta-nav" target="_blank">Start Free →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-glow-2"></div>
+  <div class="container">
+    <div class="hero-inner">
+      <div class="hero-content">
+        <div class="hero-eyebrow">AI Portfolio Co-pilot · India + US + MF</div>
+        <h1>Stop checking<br>5 apps every<br><em>morning.</em></h1>
+        <p class="hero-sub">FinSage sends you one brief at 8 AM — what moved, what it means for your specific holdings, and what to consider. 56 investors. ₹37Cr tracked. On Telegram. Free.</p>
+        <div class="hero-cta-group">
+          <a href="https://t.me/FinSageAI_bot?start=web" class="btn-primary" target="_blank">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.01 9.47c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L6.12 14.53l-2.95-.92c-.64-.203-.654-.64.136-.948l11.527-4.448c.534-.194 1.003.13.73.934z"/></svg>
+            Get my free morning brief
+          </a>
+          <div class="sebi-inline">AI analysis tool · Not a SEBI-registered investment adviser</div>
+          <a href="#how" class="btn-secondary">See how it works ↓</a>
+        </div>
+      </div>
+
+      <!-- CHAT WIDGET -->
+      <div class="chat-widget">
+        <div class="chat-header">
+          <div class="chat-avatar">FS</div>
+          <div class="chat-meta">
+            <div class="chat-name">FinSage AI</div>
+            <div class="chat-status">Active now</div>
+          </div>
+        </div>
+        <div class="chat-body">
+
+          <!-- TYPING 1 -->
+          <div class="typing show1">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+          </div>
+
+          <!-- BEAT 1: Market context -->
+          <div class="msg beat1">
+            <div class="msg-label">🌅 8:00 AM Market Brief · Mon</div>
+            <div class="msg-row">
+              <span class="msg-ticker">NIFTY 50</span>
+              <span class="msg-val neg">24,013 · −1.02%</span>
+            </div>
+            <div class="msg-row">
+              <span class="msg-ticker">SENSEX</span>
+              <span class="msg-val neg">79,218 · −0.89%</span>
+            </div>
+            <div class="msg-row">
+              <span class="msg-ticker">T1 Trigger</span>
+              <span class="msg-val warn">277 pts away ⚠</span>
+            </div>
+            <div class="msg-time">Delivered 8:00 AM ✓✓</div>
+          </div>
+
+          <!-- TYPING 2 -->
+          <div class="typing show2">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+          </div>
+
+          <!-- BEAT 2: Portfolio impact -->
+          <div class="msg beat2">
+            <div class="msg-label">📊 Your Portfolio · 10:15 AM</div>
+            <div class="msg-row">
+              <span class="msg-ticker">India Holdings</span>
+              <span class="msg-val pos">₹14.8L · +8.2%</span>
+            </div>
+            <div class="msg-row">
+              <span class="msg-ticker">US Holdings</span>
+              <span class="msg-val pos">$12,100 · +32%</span>
+            </div>
+            <hr class="msg-divider">
+            <div style="font-size:0.78rem;color:var(--muted-light)">ICICIBANK: no action needed. Holding well above entry.</div>
+            <div class="msg-time">10:15 AM ✓✓</div>
+          </div>
+
+          <!-- TYPING 3 -->
+          <div class="typing show3">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+          </div>
+
+          <!-- BEAT 3: One decision -->
+          <div class="msg beat3">
+            <div class="msg-label">⚡ Deployment Window</div>
+            <div class="msg-action">Nifty T1 zone active. Lumpsum window open based on your plan.</div>
+            <div class="msg-action">Consider: ₹40K → HDFC Small Cap if Nifty holds above 23,800 through 11 AM.</div>
+            <hr class="msg-divider">
+            <div style="font-size:0.72rem;color:var(--muted)">AI analysis only · Your decision · Consult adviser for large moves</div>
+            <div class="msg-time">10:18 AM ✓✓</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ONBOARDING STRIP -->
+<div class="onboarding-strip">
+  <div class="container">
+    <h3>Before you tap Start Free</h3>
+    <p>Here's exactly what happens — no surprises</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-title">Install Telegram</div>
+        <div class="step-desc">Free app, 2 min setup if you don't have it. iOS + Android + desktop.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-title">Type /start</div>
+        <div class="step-desc">FinSage responds in under 10 seconds with a setup guide.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-title">Add your first holding</div>
+        <div class="step-desc">One line: "50 shares ICICIBANK @ 1195" or upload a Zerodha/Kuvera CSV.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <div class="step-title">Brief arrives tomorrow</div>
+        <div class="step-desc">Your personalised 8 AM briefing starts the next morning. Automatically.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAIN STRIP -->
+<section class="pain-strip">
+  <div class="container">
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="pain-icon">📱</div>
+        <h4>Checking Zerodha 4× a day with no plan</h4>
+        <p>Watching prices move without context is anxiety, not investing. FinSage gives you one structured read — then you close the app.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">📉</div>
+        <h4>Panic-selling in corrections you saw coming</h4>
+        <p>Crash trigger alerts give you a pre-set response plan. When Nifty hits your level, FinSage sends the framework. No improvisation under pressure.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">⏳</div>
+        <h4>Missing lumpsum windows while waiting for certainty</h4>
+        <p>There is no perfect moment. FinSage tells you when your pre-defined conditions are met. You decide. No tips, no guesswork.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="container">
+    <div class="how-header">
+      <div class="section-label">// How it works</div>
+      <h2>Set up in 5 minutes.<br>Briefed every morning.</h2>
+      <p class="section-sub">FinSage works on Telegram — nothing to install, no new app to learn.</p>
+    </div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="how-step-num">01</div>
+        <h3>Add your portfolio</h3>
+        <p>Type holdings in plain language or upload directly from Zerodha Console, Kuvera, or INDmoney. India + US stocks + Mutual Funds all supported.</p>
+        <div class="detail">Takes 5 minutes</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">02</div>
+        <h3>Get briefed every morning</h3>
+        <p>8 AM pre-market digest. 10:15 AM portfolio briefing with your specific holdings in context. No generic market summaries.</p>
+        <div class="detail">Daily, automated</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">03</div>
+        <h3>Ask anything, get specific answers</h3>
+        <p>"Should I add to ICICIBANK?" — FinSage pulls your actual position, current valuation, and your existing exposure before responding.</p>
+        <div class="detail">Answers in seconds</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features">
+  <div class="container">
+    <div class="features-header">
+      <div class="section-label">// Capabilities</div>
+      <h2>Built for investors who<br>make their own decisions.</h2>
+      <p class="section-sub">Serious investors buy decision speed, not novelty. Unlike ChatGPT, FinSage already knows your portfolio — it watches the market daily and comes to you. You don't have to remember to ask.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card featured">
+        <div class="feature-icon">⚡</div>
+        <h3>Crash Trigger Alerts</h3>
+        <p>Set Nifty trigger levels in advance. When they fire, get instant context on what it means for your specific portfolio — not generic market commentary.</p>
+      </div>
+      <div class="feature-card featured">
+        <div class="feature-icon">📊</div>
+        <h3>Daily Briefings</h3>
+        <p>8 AM pre-market + 10:15 AM post-open. Your holdings, your P&L, your context. Replaces the 45-minute morning ritual of checking 5 apps.</p>
+      </div>
+      <div class="feature-card featured">
+        <div class="feature-icon">📰</div>
+        <h3>Earnings Decoder</h3>
+        <p>Results just dropped? Get instant beat/miss analysis and what it means for your position — in 30 seconds, not after reading the full PDF.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <h3>Stock Deep Dive</h3>
+        <p>Full institutional-grade analysis — financials, competitive moat, valuation, and key risks — surfaced in under a minute.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌏</div>
+        <h3>India + US + MF Coverage</h3>
+        <p>NSE/BSE equities, US stocks, and Indian mutual funds in one unified portfolio view. No switching between platforms.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Private by Design</h3>
+        <p>Your portfolio data is encrypted on our server. No human can read it — not even us. Delete everything with one command, anytime.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="testimonials">
+  <div class="container">
+    <div class="testimonials-header">
+      <div class="section-label">// From investors using FinSage</div>
+      <h2>What serious investors say.</h2>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card">
+        <div class="testi-quote">"</div>
+        <p class="testi-text">I had a Nifty trigger set at 23,800. When it fired, FinSage didn't just alert me — it gave me the full context on my portfolio exposure. I made my own call in 10 minutes. No second-guessing.</p>
+        <hr class="testi-divider">
+        <div class="testi-name">S.K.G</div>
+        <div class="testi-role">Equity Investor · 12+ years</div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-quote">"</div>
+        <p class="testi-text">I used to spend 45 minutes every morning across Moneycontrol, Zerodha, and YouTube just to understand what happened. Now I read the 8 AM brief and I'm done. My wife noticed I stopped stressing at breakfast.</p>
+        <hr class="testi-divider">
+        <div class="testi-name">R.K</div>
+        <div class="testi-role">Retired Professional · Pune</div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-quote">"</div>
+        <p class="testi-text">During the Feb correction I asked FinSage "should I pause my SIPs?" — it pulled my actual holdings and walked me through the logic of holding. That clarity was worth more than any tip I've ever received.</p>
+        <hr class="testi-divider">
+        <div class="testi-name">U.A</div>
+        <div class="testi-role">Software Professional · Bangalore</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="pricing-header">
+      <div class="section-label">// Pricing</div>
+      <h2>Start free. Upgrade when<br>your portfolio demands it.</h2>
+      <p class="section-sub">No credit card needed. No ads. No tips. Just your portfolio, briefed daily.</p>
+    </div>
+    <div class="pricing-grid">
+
+      <!-- FREE -->
+      <div class="price-card">
+        <div class="price-for">For testing FinSage</div>
+        <div class="price-tier">Free</div>
+        <div class="price-amount">₹0 <span>/ forever</span></div>
+        <div class="price-desc">Everything you need to experience FinSage properly</div>
+        <p class="price-desc" style="color:var(--amber);font-size:0.75rem;margin-top:6px;">Worth trying before you spend anything</p>
+        <hr class="price-divider">
+        <ul class="price-features">
+          <li>Daily briefings (8 AM + 10:15 AM)</li>
+          <li>Crash trigger alerts</li>
+          <li>3 questions/day</li>
+          <li>Stock deep dive</li>
+          <li>Earnings decoder</li>
+          <li>CSV/Excel portfolio import</li>
+          <li class="dim">Compare stocks</li>
+          <li class="dim">Health check & rebalancing</li>
+          <li class="dim">US stocks tracking</li>
+        </ul>
+        <a href="https://t.me/FinSageAI_bot?start=web" class="btn-price" target="_blank">Start Free</a>
+        <div class="sebi-price">AI tool · Not SEBI-registered</div>
+      </div>
+
+      <!-- PRO -->
+      <div class="price-card popular">
+        <div class="popular-badge">Most Popular</div>
+        <div class="price-for">For active investors</div>
+        <div class="price-tier">Pro</div>
+        <div class="price-amount">₹299 <span>/ month</span></div>
+        <div class="price-desc">For investors making regular decisions across a growing portfolio</div>
+        <p class="price-desc" style="color:var(--amber);font-size:0.75rem;margin-top:6px;">Less than one bad trade decision costs you</p>
+        <hr class="price-divider">
+        <ul class="price-features">
+          <li>Everything in Free</li>
+          <li>30 questions/day</li>
+          <li>Compare stocks side-by-side</li>
+          <li>Monthly health check</li>
+          <li>Quarterly rebalancing plan</li>
+          <li>US stocks tracking</li>
+          <li>Up to 50 stocks</li>
+          <li>Weekly P&L summary</li>
+          <li>Priority responses</li>
+        </ul>
+        <a href="https://t.me/FinSageAI_bot?start=web" class="btn-price primary-price" target="_blank">Get Pro</a>
+        <div class="sebi-price">AI tool · Not SEBI-registered</div>
+      </div>
+
+      <!-- ELITE -->
+      <div class="price-card">
+        <div class="price-for">For serious wealth builders</div>
+        <div class="price-tier">Elite</div>
+        <div class="price-amount">₹999 <span>/ month</span></div>
+        <div class="price-desc">For investors managing significant portfolios who want depth and priority access</div>
+        <p class="price-desc" style="color:var(--amber);font-size:0.75rem;margin-top:6px;">Less than one month of a SEBI RIA retainer (₹2,500–₹5,000/month minimum)</p>
+        <hr class="price-divider">
+        <ul class="price-features">
+          <li>Everything in Pro</li>
+          <li>60 questions/day</li>
+          <li>Weekly P&L every Friday</li>
+          <li>Priority AI responses</li>
+          <li>Direct founder support</li>
+          <li>Unlimited stocks</li>
+          <li>Monthly rebalancing</li>
+          <li>Early access to new features</li>
+        </ul>
+        <a href="https://t.me/FinSageAI_bot?start=web" class="btn-price" target="_blank">Get Elite</a>
+        <div class="sebi-price">AI tool · Not SEBI-registered</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta">
+  <div class="container">
+    <div class="section-label" style="text-align:center">// Ready?</div>
+    <h2>Your portfolio deserves<br>a <em>daily briefing.</em></h2>
+    <p>Join 56 investors tracking ₹37Cr+ in combined portfolios — who replaced their morning chaos with one clear signal.</p>
+    <div class="cta-wrapper">
+      <a href="https://t.me/FinSageAI_bot?start=web" class="btn-primary" target="_blank">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.01 9.47c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L6.12 14.53l-2.95-.92c-.64-.203-.654-.64.136-.948l11.527-4.448c.534-.194 1.003.13.73.934z"/></svg>
+        Start free on Telegram →
+      </a>
+      <div class="sebi-inline">FinSage is an AI educational tool, not a SEBI-registered investment adviser. All analysis is for informational purposes only.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <div class="footer-logo">Fin<span>Sage</span> · AI Portfolio Co-pilot</div>
+        <div class="footer-sebi">FinSage is an AI-powered educational and analytical tool. It is not a SEBI-registered investment adviser. All analysis, briefings, and signals are for informational purposes only and do not constitute investment advice. Equity investments are subject to market risks. Please read all scheme-related documents carefully and consult a SEBI-registered financial adviser before making investment decisions.</div>
+      </div>
+      <div class="footer-links">
+        <a href="https://t.me/FinSageAI_bot" target="_blank">Telegram</a>
+        <a href="mailto:aviraj.smile@gmail.com">Contact</a>
+      </div>
+    </div>
+    <div style="margin-top:24px;font-size:0.72rem;color:var(--muted);text-align:center">© 2026 FinSage · Made in India 🇮🇳</div>
+  </div>
+</footer>
+
+</body>
+</html>
