@@ -15,6 +15,8 @@ app = Flask(__name__)
 
 DB_PATH = "leads.db"
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+FAKE_DOMAINS = {"example.com", "test.com", "mailinator.com", "guerrillamail.com", "throwam.com"}
+FAKE_LOCALS  = {"test", "admin", "user", "noreply", "fake"}
 
 
 def init_db():
@@ -43,8 +45,12 @@ def capture_lead():
     email = data.get("email", "").strip()
     feature = data.get("feature", "").strip()
 
-    if not email or not EMAIL_RE.match(email):
-        return jsonify({"ok": False, "message": "Please enter a valid email address."}), 200
+    local, _, domain = email.partition("@")
+    if (not email or not EMAIL_RE.match(email)
+            or domain.lower() in FAKE_DOMAINS
+            or local.lower() in FAKE_LOCALS):
+        return jsonify({"error": "invalid_email",
+                        "message": "Please enter a valid email address."}), 400
 
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
