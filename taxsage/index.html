@@ -566,6 +566,28 @@ footer a { color: var(--amber); text-decoration: none; }
   </div>
 </div>
 
+<div id="cg-guide" style="background:#0f172a; border:1px solid #1e3a5f; border-radius:10px;
+     padding:28px; max-width:720px; margin:40px auto 32px;">
+  <div style="font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:#3b82f6;
+       letter-spacing:0.06em; margin-bottom:16px;">// how to file schedule cg — step by step</div>
+  <p style="color:#94a3b8; font-size:0.82rem; line-height:1.8; margin-bottom:20px;">
+    Step-by-step ITR filing guide coming soon.
+    Drop your email below to get notified when it's live.
+  </p>
+  <form class="email-form" id="cgGuideForm"
+        action="https://docs.google.com/forms/d/e/1FAIpQLSc2OgNpr7BbzJpSFKaVMrTQDBBFz7xwYG-4G_hNMEbaDXECSQ/formResponse"
+        method="POST">
+    <input type="email" name="entry.1559406371" class="email-input"
+           placeholder="your@email.com" required>
+    <input type="hidden" name="entry.370173851" value="TaxSage">
+    <input type="hidden" name="source" value="taxsage-cg-guide">
+    <button type="submit" class="email-btn">Notify me →</button>
+  </form>
+  <div class="email-success" id="cgGuideEmailSuccess">
+    ✓ You're on the list. We'll email you before launch.
+  </div>
+</div>
+
 <footer>
   A free tool by <a href="https://sageapps.in">SageApps</a> ·
   FY 2025-26 · Estimates only · India-first ·
@@ -1572,7 +1594,9 @@ function renderCGResults(data) {
 
     <div style="background:#0f172a; border:1px solid #1e3a5f; border-radius:10px; padding:20px; margin-bottom:14px;">
       <div style="font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:#3b82f6;
-           letter-spacing:0.06em; margin-bottom:12px;">// schedule cg — enter while filing ITR</div>
+           letter-spacing:0.06em; margin-bottom:12px;">// schedule cg — enter while filing ITR
+        <a href="#cg-guide" style="font-size:0.7rem; color:#3b82f6; text-decoration:none; float:right; margin-top:-18px;">Step-by-step guide ↓</a>
+      </div>
 
       <div style="color:#64748b; font-size:0.75rem; padding:8px 0; border-top:1px solid #1e293b;">B1 — Short Term Capital Gains (Equity)</div>
       ${cgRow('STCG to declare', data.net_stcg >= 0 ? fINR(data.net_stcg) : '₹0 (loss year)', '#e2e8f0', false)}
@@ -1623,6 +1647,23 @@ document.getElementById('earlyForm').addEventListener('submit', async function(e
   } catch(err) {}
   form.style.display = 'none';
   document.getElementById('emailSuccess').style.display = 'block';
+});
+</script>
+
+<script>
+document.getElementById('cgGuideForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = new FormData(form);
+  try {
+    await fetch(form.action, {
+      method: 'POST',
+      body: data,
+      mode: 'no-cors'
+    });
+  } catch(err) {}
+  form.style.display = 'none';
+  document.getElementById('cgGuideEmailSuccess').style.display = 'block';
 });
 </script>
 </body>
