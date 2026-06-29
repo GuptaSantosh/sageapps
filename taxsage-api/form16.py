@@ -171,18 +171,16 @@ def _build_guidance(data: dict) -> dict:
         guidance["regime_note"] = ("New regime detected. Only 80CCD(2) employer NPS "
                                    "is deductible. 80C, 80D, 80TTA not available.")
         if nps.get("employer_nps_amount", 0) > 0:
-            portal_bug = nps.get("portal_bug_detected", False)
             guidance["schedule_via"].append({
                 "section": "80CCD(2) — Employer NPS",
                 "amount": nps.get("employer_nps_amount", 0),
                 "eligible": nps.get("employer_nps_amount", 0),
-                "action": "manual_entry_required" if portal_bug else "verify_prefilled",
-                "note": ("⚠️ Portal bug detected: eligible amount shows ₹0 but "
-                         "should be ₹{:,}. Delete existing entry and re-add manually "
-                         "with both fields set to ₹{:,}.").format(
-                             nps.get("employer_nps_amount", 0),
-                             nps.get("employer_nps_amount", 0)
-                         ) if portal_bug else "Verify this is correctly populated."
+                "action": "manual_entry_required",
+                "note": ("⚠️ Known portal issue: ITR portal often shows 'Amount eligible for "
+                         "deduction' as ₹0 for 80CCD(2). Verify your Schedule VI-A shows "
+                         "₹{:,} in both fields. If eligible amount shows ₹0, delete "
+                         "the entry and re-add manually.").format(
+                             nps.get("employer_nps_amount", 0))
             })
     else:
         guidance["regime_note"] = ("Old regime detected. All eligible deductions "
