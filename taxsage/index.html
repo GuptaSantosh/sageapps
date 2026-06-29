@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="icon" href="/favicon.ico" sizes="any" />
-<link rel="icon" href="/favicon.ico" type="image/x-icon" />
+<link rel="icon" type="image/png" href="/logo-64.png" sizes="64x64" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <meta property="og:image" content="https://sageapps.in/logo-192.png" />
 <meta charset="UTF-8">
@@ -1558,6 +1557,18 @@ function renderCGResults(data) {
       ${cgRow('STCG tax (20% flat)', fINR(data.stcg_tax), '#e2e8f0', false)}
       ${cgRow('Total tax owed', fINR(data.total_tax_owed), taxColor, true)}
     </div>
+
+    ${(data.net_debt_ltcg > 0) ? `
+    <div style="background:#0f172a; border:1px solid #854d0e; border-radius:10px; padding:20px; margin-bottom:14px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:#854d0e;
+           letter-spacing:0.06em; margin-bottom:12px;">// debt mf — separate tax treatment ⚠️</div>
+      ${cgRow('Debt MF LTCG', fINR(data.net_debt_ltcg), '#fbbf24', false)}
+      ${cgRow('Tax treatment', 'Taxed at your income slab rate (not 12.5%)', '#fbbf24', false)}
+      <p style="color:#92400e; font-size:0.75rem; margin-top:12px; margin-bottom:0; line-height:1.5;">
+        Add ${fINR(data.net_debt_ltcg)} to your other income when computing tax.
+        Do not include in Schedule CG equity section.
+      </p>
+    </div>` : ''}
 
     <p style="color:#475569; font-size:0.78rem; margin-bottom:8px;">
       Combined from: <span style="color:#64748b; font-family:'JetBrains Mono',monospace;">${sources}</span>
