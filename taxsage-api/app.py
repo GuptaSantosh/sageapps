@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import anthropic
 import ais_scanner
 import capital_gains
+import form16
 
 load_dotenv()
 
@@ -85,6 +86,34 @@ def capital_gains_summary():
         if msg.startswith("unsupported_file:"):
             return jsonify({"error": "unsupported_file",
                             "message": f"{msg.split(':',1)[1]} — only .xlsx and .pdf accepted."}), 200
+        return jsonify({"error": "error", "message": msg}), 200
+    except anthropic.APIError as e:
+        return jsonify({"error": "api_error", "detail": str(e)}), 200
+
+
+@app.route("/form16-summary", methods=["POST"])
+def form16_summary():
+    pdf_file = request.files.get("pdf_file")
+    pan = request.form.get("pan", "").strip()
+    dob = request.form.get("dob", "").strip()
+
+    if not pdf_file:
+        return jsonify({"error": "missing_file",
+                        "message": "Upload your Form 16 PDF."}), 400
+
+    password = pan.lower() + dob if pan and dob else ""
+    pdf_bytes = pdf_file.read()
+
+    try:
+        return jsonify(form16.parse(pdf_bytes, password))
+    except ValueError as e:
+        msg = str(e)
+        if msg == "wrong_password":
+            return jsonify({"error": "wrong_password",
+                            "message": "Could not open PDF — check PAN and date of birth."}), 200
+        if msg.startswith("claude_parse_failed"):
+            return jsonify({"error": "parse_failed",
+                            "message": "Could not extract Form 16 data. Please try again."}), 200
         return jsonify({"error": "error", "message": msg}), 200
     except anthropic.APIError as e:
         return jsonify({"error": "api_error", "detail": str(e)}), 200
