@@ -290,6 +290,15 @@ Priority order (May 2026):
 - Step-by-step guide anchor + email capture for future feature
 - Known gap: dedup assumes CAMS is subset of Kuvera — warn user if CAMS-only
 
+**Form 16 Analyser — Live (June 29 2026)**
+- URL: sageapps.in/taxsage/form16.html
+- Upload Form 16 PDF → salary summary, regime detection,
+  deduction flags, TDS verification, filing guidance per schedule
+- Regime-aware: new regime shows only 80CCD(2); old regime shows all VI-A deductions
+- 80CCD(2) portal bug flagged — always shown as manual entry required with instructions
+- Backend: /form16-summary route in taxsage-api, form16.py parser
+- Known gap: no step-by-step ITR portal navigation — "coming soon" anchor live
+
 - Pre-filing Checklist — Schedule FA (foreign assets), Schedule AL (assets >₹50L),
   dividend declarations, TDS mismatch summary
 - Advance Tax Calculator — June 15/Sept 15/Dec 15/Mar 15 due dates, Telegram reminders
@@ -877,6 +886,41 @@ Validated against founder's own files:
 - Zerodha + Kuvera: STCG -₹29,891, LTCG ₹2,06,076, tax ₹10,134 ✅
 
 Next session: Form 16 parser — salary pre-fill for ITR Schedule S
+
+
+### Session: June 29 2026 (continued) — Form 16 Analyser
+
+Built:
+- form16.py — Claude-based PDF parser, extracts salary, deductions,
+  TDS, regime, NPS details
+- /form16-summary route in app.py — identical error handling to /capital-gains-summary
+- taxsage/form16.html — full frontend, 5 result cards:
+  Card A: Schedule S salary verification
+  Card B: Regime detection (new/old, 115BAC)
+  Card C: Schedule VI-A deductions — amber if manual entry needed
+  Card D: Schedule TDS1 TDS verification
+  Card E: Flags (surcharge, NPS portal bug, TDS shortfall)
+- Form 16 link added to taxsage/index.html tool grid
+
+Key decision: 80CCD(2) always flagged as manual_entry_required
+for new regime — portal bug is widespread, not document-specific
+
+Validated against founder's Form 16 FY 2025-26:
+- Gross salary ₹96,15,647 ✅
+- Net taxable ₹95,40,647 ✅
+- New regime detected ✅
+- TDS ₹26,93,217, TAN DELM17484F ✅
+- 80CCD(2) ₹2,93,278 amber flag ✅ (after fix)
+- Surcharge flag ✅
+
+Personal filing note (founder):
+- 80CCD(2) eligible amount shows ₹0 in ITR portal — delete and re-add
+  with both fields set to ₹2,93,278 before filing
+- This fix alone saves ~₹1L in tax
+
+Next session options:
+A. Tab navigation on taxsage hub (cosmetic, lower priority)
+B. Advance Tax Calculator — Sept 15 deadline coming, rules-based build
 
 
 Finsage
