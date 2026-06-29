@@ -281,7 +281,16 @@ Priority order (May 2026):
   JSON error body before throwing
 
 **Known open items / not yet built:**
-- Pre-filing Checklist — Schedule FA (foreign assets), Schedule AL (assets >₹50L), 
+**Capital Gains Summary — Live (June 29 2026)**
+- Zerodha Tax P&L (.xlsx), Kuvera PDF, CAMS Capital Gains PDF supported
+- Debt MF gains separated — amber card, slab rate treatment (FA 2024)
+- Kuvera + CAMS deduplication — no double counting
+- Schedule CG reference card — exact ITR-2 row mapping (B1/B2/B5)
+- STCG loss carry forward flagged with note
+- Step-by-step guide anchor + email capture for future feature
+- Known gap: dedup assumes CAMS is subset of Kuvera — warn user if CAMS-only
+
+- Pre-filing Checklist — Schedule FA (foreign assets), Schedule AL (assets >₹50L),
   dividend declarations, TDS mismatch summary
 - Advance Tax Calculator — June 15/Sept 15/Dec 15/Mar 15 due dates, Telegram reminders
 - Tax Harvest Alerts — Feb portfolio scan for LTCG exemption optimization
@@ -841,6 +850,33 @@ Next session:
   (sign handling, equity/debt mixing) — extra scrutiny warranted whenever a 
   feature merges numbers across input sources rather than reading one cleanly 
   structured file.
+
+
+### Session: June 29 2026 — Capital Gains FA2024 Compliance + Schedule CG
+
+Outcome: Capital Gains Summary upgraded for FA 2024 compliance.
+Schedule CG filing helper live.
+
+Built:
+- Debt MF separation in Kuvera parser — new 4-key Claude prompt
+  (stcg_equity/ltcg_equity/stcg_debt/ltcg_debt)
+- Kuvera + CAMS dedup logic — CAMS equity subtracted when both uploaded
+- Multi-source aggregation validated: Zerodha + Kuvera + CAMS together
+- Amber debt card on frontend — ₹16,769 shown with slab rate warning
+- Schedule CG reference card — B1 (STCG), B2 (LTCG 112A), B5 (debt)
+- STCG loss carry forward note
+- Step-by-step guide anchor + email capture
+
+Bugs fixed:
+- Debt gains silently dropped (₹16,769 was missing from output)
+- Double counting when Kuvera + CAMS both uploaded (DSP fund appeared twice)
+- Wrong tax rate on debt (was using 12.5% equity rate, now slab rate)
+
+Validated against founder's own files:
+- Kuvera PDF: equity LTCG ₹43,164, debt LTCG ₹16,769 ✅
+- Zerodha + Kuvera: STCG -₹29,891, LTCG ₹2,06,076, tax ₹10,134 ✅
+
+Next session: Form 16 parser — salary pre-fill for ITR Schedule S
 
 
 Finsage
