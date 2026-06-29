@@ -299,7 +299,7 @@ footer a { color: var(--amber); text-decoration: none; }
 
 <!-- SAMPLE SCAN PREVIEW -->
 <div style="max-width:720px; margin:0 auto 56px; padding:0 20px;">
-  <div style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:#64748b; margin-bottom:14px; letter-spacing:0.04em;">
+  <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#64748b; margin-bottom:14px; letter-spacing:0.04em;">
     // what a scan looks like — sample output
   </div>
 
@@ -568,7 +568,7 @@ footer a { color: var(--amber); text-decoration: none; }
 
 <div id="cg-guide" style="background:#0f172a; border:1px solid #1e3a5f; border-radius:10px;
      padding:28px; max-width:720px; margin:40px auto 32px;">
-  <div style="font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:#3b82f6;
+  <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#3b82f6;
        letter-spacing:0.06em; margin-bottom:16px;">// how to file schedule cg — step by step</div>
   <p style="color:#94a3b8; font-size:0.82rem; line-height:1.8; margin-bottom:20px;">
     Step-by-step ITR filing guide coming soon.
@@ -963,7 +963,7 @@ calc();
 
   <div id="ais-gate" style="background:#0f172a; border:1px solid #1e293b;
        border-radius:12px; padding:32px; text-align:center;">
-    <p style="font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:#475569;
+    <p style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#475569;
        letter-spacing:0.06em; margin-bottom:16px;">// free · no account required</p>
     <p style="font-family:'Playfair Display',serif; font-size:1.2rem; color:#f0f4ff;
        margin-bottom:8px;">Enter your email to use this free tool</p>
@@ -1054,7 +1054,7 @@ calc();
   <!-- Email gate — same sessionStorage key as AIS Scanner -->
   <div id="cg-gate" style="background:#0f172a; border:1px solid #1e293b;
        border-radius:12px; padding:32px; text-align:center;">
-    <p style="font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:#475569;
+    <p style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#475569;
        letter-spacing:0.06em; margin-bottom:16px;">// free · no account required</p>
     <p style="font-family:'Playfair Display',serif; font-size:1.2rem; color:#f0f4ff;
        margin-bottom:8px;">Enter your email to use this free tool</p>
@@ -1571,7 +1571,7 @@ function renderCGResults(data) {
     </div>
 
     <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:20px; margin-bottom:14px;">
-      <div style="font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:#64748b;
+      <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#64748b;
            letter-spacing:0.06em; margin-bottom:12px;">// breakdown</div>
       ${cgRow('LTCG exemption used', fINR(data.ltcg_exemption_used) + ' of ₹1,25,000', '#4ade80', false)}
       ${cgRow('LTCG taxable (above ₹1.25L)', fINR(data.ltcg_taxable), '#e2e8f0', false)}
@@ -1582,7 +1582,7 @@ function renderCGResults(data) {
 
     ${(data.net_debt_ltcg > 0) ? `
     <div style="background:#0f172a; border:1px solid #854d0e; border-radius:10px; padding:20px; margin-bottom:14px;">
-      <div style="font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:#854d0e;
+      <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#854d0e;
            letter-spacing:0.06em; margin-bottom:12px;">// debt mf — separate tax treatment ⚠️</div>
       ${cgRow('Debt MF LTCG', fINR(data.net_debt_ltcg), '#fbbf24', false)}
       ${cgRow('Tax treatment', 'Taxed at your income slab rate (not 12.5%)', '#fbbf24', false)}
@@ -1593,9 +1593,9 @@ function renderCGResults(data) {
     </div>` : ''}
 
     <div style="background:#0f172a; border:1px solid #1e3a5f; border-radius:10px; padding:20px; margin-bottom:14px;">
-      <div style="font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:#3b82f6;
+      <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#3b82f6;
            letter-spacing:0.06em; margin-bottom:12px;">// schedule cg — enter while filing ITR
-        <a href="#cg-guide" style="font-size:0.7rem; color:#3b82f6; text-decoration:none; float:right; margin-top:-18px;">Step-by-step guide ↓</a>
+        <a href="#cg-guide" style="font-size:0.75rem; color:#3b82f6; text-decoration:none; float:right; margin-top:-18px;">Step-by-step guide ↓</a>
       </div>
 
       <div style="color:#64748b; font-size:0.75rem; padding:8px 0; border-top:1px solid #1e293b;">B1 — Short Term Capital Gains (Equity)</div>
@@ -1608,7 +1608,7 @@ function renderCGResults(data) {
 
       <div style="color:#64748b; font-size:0.75rem; padding:8px 0; border-top:1px solid #1e293b; margin-top:8px;">B2 — Long Term Capital Gains u/s 112A (Listed Equity + Equity MF)</div>
       ${cgRow('Full LTCG (before exemption)', fINR(data.net_ltcg), '#e2e8f0', false)}
-      ${cgRow('Less: exemption u/s 112A', '−' + fINR(data.ltcg_exemption_used), '#e2e8f0', false)}
+      ${cgRow('Less: exemption u/s 112A', fINR(data.ltcg_exemption_used), '#e2e8f0', false)}
       ${cgRow('Net taxable LTCG', fINR(data.ltcg_taxable), data.ltcg_taxable > 0 ? '#f87171' : '#e2e8f0', false)}
 
       ${data.net_debt_ltcg > 0 ? `
@@ -1618,7 +1618,7 @@ function renderCGResults(data) {
         This is taxed at slab rate. Enter under 'Long term capital gains on which no STT is paid' in Schedule CG.
       </p>` : ''}
 
-      <p style="color:#475569; font-size:0.72rem; margin-top:16px; margin-bottom:0; line-height:1.6;
+      <p style="color:#475569; font-size:0.75rem; margin-top:16px; margin-bottom:0; line-height:1.6;
            border-top:1px solid #1e293b; padding-top:12px;">
         These row references are for ITR-2 / ITR-3. ITR-1 does not support capital gains — upgrade to ITR-2 if needed.
       </p>
