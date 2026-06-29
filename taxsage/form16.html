@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/png" href="/logo-64.png" sizes="64x64" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta property="og:image" content="https://sageapps.in/logo-192.png" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form 16 Analyser — ITR filing helper | TaxSage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:        #0a0f1e;
+  --navy-mid:    #0f1628;
+  --navy-card:   #131c35;
+  --navy-border: #1e2d50;
+  --amber:       #d4963a;
+  --amber-light: #e8b460;
+  --amber-dim:   rgba(212,150,58,0.10);
+  --sage:        #2dd4a0;
+  --sage-dim:    rgba(45,212,160,0.10);
+  --white:       #f0f4ff;
+  --muted:       #6b7fa3;
+  --text:        #c8d4f0;
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--navy); color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.6; overflow-x: hidden; min-height: 100vh;
+}
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 16px 0;
+  background: rgba(10,15,30,0.92); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--navy-border);
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 1100px; margin: 0 auto; padding: 0 24px;
+}
+.logo { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: var(--white); text-decoration: none; }
+.logo span { color: var(--amber); }
+.logo sup {
+  font-size: .5rem; background: var(--sage); color: var(--navy);
+  padding: 1px 5px; border-radius: 3px; vertical-align: super;
+  font-family: 'DM Sans', sans-serif; font-weight: 500;
+}
+.nav-links { display: flex; gap: 1.5rem; align-items: center; }
+.nav-links a { font-size: .85rem; color: var(--muted); text-decoration: none; transition: color .2s; }
+.nav-links a:hover { color: var(--white); }
+.nav-cta { background: var(--amber) !important; color: var(--navy) !important; padding: .4rem 1rem; border-radius: 6px; font-weight: 500 !important; }
+
+/* HERO */
+.hero { padding: 116px 24px 40px; text-align: center; position: relative; overflow: hidden; }
+.orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .18; animation: float 10s ease-in-out infinite; }
+.o1 { width: 320px; height: 320px; background: #d4963a; top: -5%; left: -8%; }
+.o2 { width: 200px; height: 200px; background: #2dd4a0; bottom: 5%; right: 3%; animation-delay: 4s; }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
+.hero-content { position: relative; z-index: 1; max-width: 680px; margin: 0 auto; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--amber-dim); border: 1px solid rgba(212,150,58,.25);
+  color: var(--amber); padding: .32rem 1rem; border-radius: 100px;
+  font-size: .75rem; font-family: 'JetBrains Mono', monospace;
+  letter-spacing: .04em; margin-bottom: 1.5rem;
+}
+h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.2rem,5vw,3.4rem); line-height: 1.1; color: var(--white); margin-bottom: 1.1rem; }
+h1 em { color: var(--amber); font-style: italic; }
+.hero-sub { font-size: 1rem; color: var(--muted); max-width: 500px; margin: 0 auto; line-height: 1.65; }
+
+/* FOOTER */
+footer { border-top: 1px solid var(--navy-border); padding: 2rem 24px; text-align: center; font-size: .75rem; color: var(--muted); background: var(--navy-mid); }
+footer a { color: var(--amber); text-decoration: none; }
+
+@keyframes fadeUp { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
+
+@media (max-width: 600px) {
+  .nav-links { display: none; }
+  .pan-dob-row { grid-template-columns: 1fr !important; }
+}
+</style>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-2QY1T3ZCEC"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-2QY1T3ZCEC');
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="https://sageapps.in" class="logo">Sage<span>Apps</span><sup>TAX</sup></a>
+    <div class="nav-links">
+      <a href="https://sageapps.in#apps">All apps</a>
+      <a href="https://t.me/FinSageAI_bot">FinSage</a>
+      <a href="https://sageapps.in/taxsage/" class="nav-cta">TaxSage →</a>
+    </div>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="hero-content">
+    <div class="hero-badge">Beta</div>
+    <h1>Form 16 <em>Analyser</em></h1>
+    <p class="hero-sub">Upload your Form 16 PDF — get salary verification,
+      deduction flags, and exact ITR filing instructions.</p>
+  </div>
+</div>
+
+<div style="max-width:720px; margin:0 auto 80px; padding:0 20px;">
+
+  <!-- Upload Card -->
+  <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:28px; margin-bottom:24px;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#3b82f6;
+         letter-spacing:0.06em; margin-bottom:20px;">// upload your form 16</div>
+
+    <!-- File input -->
+    <div style="margin-bottom:18px;">
+      <label style="color:#94a3b8; font-size:0.85rem; display:block; margin-bottom:8px;">
+        Select Form 16 PDF
+      </label>
+      <label for="f16-file" id="f16-file-label"
+             style="display:block; cursor:pointer; padding:16px;
+             background:#1e293b; border:1px dashed #334155; border-radius:8px;
+             color:#64748b; font-size:0.85rem; text-align:center; transition:border-color .15s;"
+             onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#334155'">
+        📎 Click to select PDF
+        <input type="file" id="f16-file" accept=".pdf" style="display:none;"
+               onchange="onFileChange()">
+      </label>
+    </div>
+
+    <!-- PAN + DOB -->
+    <div class="pan-dob-row" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px;">
+      <div>
+        <label style="color:#94a3b8; font-size:0.85rem; display:block; margin-bottom:6px;">PAN</label>
+        <input type="text" id="f16-pan" placeholder="ABCDE1234F" maxlength="10"
+               style="width:100%; padding:10px 12px; background:#1e293b; border:1px solid #334155;
+               border-radius:8px; color:#e2e8f0; font-size:0.9rem;
+               font-family:'JetBrains Mono',monospace; outline:none;"
+               oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div>
+        <label style="color:#94a3b8; font-size:0.85rem; display:block; margin-bottom:6px;">Date of Birth</label>
+        <input type="text" id="f16-dob" placeholder="DD/MM/YYYY" maxlength="10"
+               style="width:100%; padding:10px 12px; background:#1e293b; border:1px solid #334155;
+               border-radius:8px; color:#e2e8f0; font-size:0.9rem;
+               font-family:'JetBrains Mono',monospace; outline:none;">
+      </div>
+    </div>
+
+    <p style="color:#475569; font-size:0.78rem; margin-bottom:20px;">
+      🔒 PDF processed in memory, never stored.
+    </p>
+
+    <button id="f16-btn" onclick="runForm16()"
+            style="width:100%; padding:14px; background:#2dd4a0; color:#0a0f1e;
+            border:none; border-radius:8px; font-size:1rem; font-weight:700;
+            cursor:pointer; font-family:'Playfair Display',serif; transition:opacity .15s;">
+      Analyse my Form 16
+    </button>
+
+    <div id="f16-error" style="display:none; margin-top:16px; padding:12px 16px;
+         background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.3);
+         border-radius:8px; color:#f87171; font-size:0.85rem;"></div>
+  </div>
+
+  <!-- Status -->
+  <div id="f16-status" style="display:none; text-align:center; padding:24px; color:#64748b; font-size:0.85rem;">
+    <div style="margin-bottom:8px;" id="f16-status-msg">Analysing your Form 16…</div>
+    <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#334155;" id="f16-ticker"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="f16-results" style="display:none;"></div>
+
+</div>
+
+<footer>
+  A free tool by <a href="https://sageapps.in">SageApps</a> ·
+  FY 2025-26 · Estimates only · India-first ·
+  <a href="https://sageapps.in/taxsage/">Back to TaxSage</a>
+</footer>
+
+<script>
+function fINR(n) {
+  if (n === null || n === undefined || n === '') return '—';
+  return '₹' + Math.abs(Math.round(n)).toLocaleString('en-IN');
+}
+
+function f16Row(label, value, color, bold, badge) {
+  const badgeHtml = badge
+    ? `<span style="font-size:0.72rem; color:#475569; margin-left:8px;">${badge}</span>`
+    : '';
+  return `<div style="display:flex; justify-content:space-between; align-items:center;
+               padding:8px 0; border-top:1px solid #1e293b;">
+    <span style="color:#94a3b8; font-size:0.82rem;">${label}</span>
+    <span style="display:flex; align-items:center; gap:0;">
+      <span style="color:${color}; font-size:0.82rem; font-family:'JetBrains Mono',monospace;
+            ${bold ? 'font-weight:700; font-size:0.9rem;' : ''}">${value}</span>
+      ${badgeHtml}
+    </span>
+  </div>`;
+}
+
+function cardHeader(text, color) {
+  return `<div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:${color};
+       letter-spacing:0.06em; margin-bottom:12px;">${text}</div>`;
+}
+
+function onFileChange() {
+  const file = document.getElementById('f16-file').files[0];
+  const label = document.getElementById('f16-file-label');
+  if (file) {
+    label.style.borderColor = '#3b82f6';
+    label.style.color = '#e2e8f0';
+    label.childNodes[0].textContent = '📎 ' + file.name + ' ';
+  }
+}
+
+function runForm16() {
+  const file = document.getElementById('f16-file').files[0];
+  const pan  = document.getElementById('f16-pan').value.trim();
+  const dob  = document.getElementById('f16-dob').value.trim();
+  const btn  = document.getElementById('f16-btn');
+  const errEl = document.getElementById('f16-error');
+  const statusEl = document.getElementById('f16-status');
+  const resultsEl = document.getElementById('f16-results');
+
+  errEl.style.display = 'none';
+  resultsEl.style.display = 'none';
+
+  if (!file) {
+    errEl.textContent = 'Please select your Form 16 PDF.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Format dob: strip slashes → DDMMYYYY
+  const dobParts = dob.split('/');
+  const dobFormatted = dobParts.length === 3 ? dobParts[0] + dobParts[1] + dobParts[2] : dob;
+
+  const formData = new FormData();
+  formData.append('pdf_file', file);
+  if (pan) formData.append('pan', pan);
+  if (dob) formData.append('dob', dobFormatted);
+
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+  btn.textContent = 'Analysing…';
+  statusEl.style.display = 'block';
+
+  let secs = 0;
+  const ticker = setInterval(() => {
+    secs++;
+    document.getElementById('f16-ticker').textContent = secs + 's — Claude is reading your Form 16…';
+  }, 1000);
+
+  fetch('https://api.sageapps.in/taxsage-api/form16-summary', {
+    method: 'POST',
+    body: formData
+  })
+  .then(r => {
+    if (!r.ok) return r.json().then(e => { throw new Error(e.message || 'Server error ' + r.status); });
+    return r.json();
+  })
+  .then(data => {
+    clearInterval(ticker);
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.textContent = 'Analyse my Form 16';
+    statusEl.style.display = 'none';
+    if (data.error) {
+      errEl.textContent = data.message || 'Something went wrong. Please try again.';
+      errEl.style.display = 'block';
+      return;
+    }
+    renderResults(data);
+  })
+  .catch(err => {
+    clearInterval(ticker);
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.textContent = 'Analyse my Form 16';
+    statusEl.style.display = 'none';
+    errEl.textContent = err.message || 'Network error — please try again.';
+    errEl.style.display = 'block';
+  });
+}
+
+function renderResults(data) {
+  const el = document.getElementById('f16-results');
+  const g  = data.filing_guidance || {};
+  const flags = g.flags || [];
+  const via   = g.schedule_via || [];
+  const hasManual = via.some(v => v.action === 'manual_entry_required');
+  const viaBorder = hasManual ? '#854d0e' : '#1e3a5f';
+  const viaHeaderColor = hasManual ? '#d97706' : '#3b82f6';
+
+  // Card A — Schedule S
+  const schedSRows = (g.schedule_s || []).map(row =>
+    f16Row(row.label, fINR(row.value), '#e2e8f0', false, '✓ verify pre-filled')
+  ).join('');
+
+  // Card B — Regime
+  const regimeLabel = data.regime === 'new_regime' ? 'New Regime (115BAC)'
+                    : data.regime === 'old_regime'  ? 'Old Regime'
+                    : 'Unknown — check Form 16';
+  const regimeColor = data.regime === 'new_regime' ? '#2dd4a0' : '#d4963a';
+
+  // Card C — Schedule VI-A
+  const viaRows = via.map(v => {
+    const isManual = v.action === 'manual_entry_required';
+    const badge = isManual ? '⚠️ manual entry required' : '✓ verify pre-filled';
+    const badgeColor = isManual ? '#fbbf24' : '#475569';
+    const noteHtml = isManual && v.note
+      ? `<p style="color:#92400e; font-size:0.75rem; margin:4px 0 8px 0; line-height:1.5;">${v.note}</p>`
+      : '';
+    return `<div style="border-top:1px solid #1e293b; padding:8px 0;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="color:#94a3b8; font-size:0.82rem;">${v.section}</span>
+        <span style="display:flex; align-items:center; gap:8px;">
+          <span style="color:${isManual ? '#fbbf24' : '#e2e8f0'}; font-size:0.82rem;
+                font-family:'JetBrains Mono',monospace;">${fINR(v.eligible)}</span>
+          <span style="font-size:0.72rem; color:${badgeColor};">${badge}</span>
+        </span>
+      </div>
+      ${noteHtml}
+    </div>`;
+  }).join('');
+
+  // Card D — TDS1
+  const tds1Rows = (g.schedule_tds1 || []).map(row => {
+    const val = typeof row.value === 'number' ? fINR(row.value) : (row.value || '—');
+    return f16Row(row.label, val, '#e2e8f0', false, '✓ verify pre-filled');
+  }).join('');
+
+  // Card E — Flags
+  const flagColors = { error: '#f87171', warning: '#fbbf24', info: '#3b82f6' };
+  const flagBorders = { error: '#7f1d1d', warning: '#854d0e', info: '#1e3a5f' };
+  const flagsHtml = flags.length > 0 ? `
+    <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:20px; margin-bottom:14px;">
+      ${cardHeader('// flags', '#64748b')}
+      ${flags.map(f => `
+        <div style="border-left:3px solid ${flagColors[f.type] || '#64748b'};
+             background:${flagBorders[f.type] ? 'rgba(0,0,0,0.2)' : 'transparent'};
+             padding:10px 14px; border-radius:0 6px 6px 0; margin-bottom:8px; font-size:0.82rem;
+             color:${flagColors[f.type] || '#94a3b8'}; line-height:1.55;">
+          ${f.message}
+        </div>`).join('')}
+    </div>` : '';
+
+  el.innerHTML = `
+    <!-- Card A: Schedule S -->
+    <div style="background:#0f172a; border:1px solid #1e3a5f; border-radius:10px; padding:20px; margin-bottom:14px;">
+      ${cardHeader('// salary summary — verify in Schedule S', '#3b82f6')}
+      ${schedSRows}
+    </div>
+
+    <!-- Card B: Regime -->
+    <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:20px; margin-bottom:14px;">
+      ${cardHeader('// regime detected', '#64748b')}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-top:1px solid #1e293b;">
+        <span style="color:#94a3b8; font-size:0.82rem;">Filing regime</span>
+        <span style="color:${regimeColor}; font-family:'JetBrains Mono',monospace; font-size:0.82rem; font-weight:600;">${regimeLabel}</span>
+      </div>
+      ${g.regime_note ? `<p style="color:#64748b; font-size:0.78rem; margin-top:12px; line-height:1.55;">${g.regime_note}</p>` : ''}
+    </div>
+
+    <!-- Card C: VI-A -->
+    ${via.length > 0 ? `
+    <div style="background:#0f172a; border:1px solid ${viaBorder}; border-radius:10px; padding:20px; margin-bottom:14px;">
+      ${cardHeader('// deductions — enter in Schedule VI-A', viaHeaderColor)}
+      ${viaRows}
+    </div>` : ''}
+
+    <!-- Card D: TDS1 -->
+    <div style="background:#0f172a; border:1px solid #1e3a5f; border-radius:10px; padding:20px; margin-bottom:14px;">
+      ${cardHeader('// tds paid — verify in Schedule TDS1', '#3b82f6')}
+      ${tds1Rows}
+    </div>
+
+    <!-- Card E: Flags -->
+    ${flagsHtml}
+
+    <p style="color:#475569; font-size:0.75rem; font-style:italic; line-height:1.5; margin-top:8px;">
+      Estimate only. Verify all figures against your Form 16 before filing.
+      Consult a CA if in doubt.
+    </p>`;
+
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
