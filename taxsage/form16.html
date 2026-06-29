@@ -118,7 +118,34 @@ footer a { color: var(--amber); text-decoration: none; }
 
 <div style="max-width:720px; margin:0 auto 80px; padding:0 20px;">
 
-  <!-- Upload Card -->
+  <!-- Email gate -->
+  <div id="f16-gate" style="background:#0f172a; border:1px solid #1e293b;
+       border-radius:12px; padding:32px; text-align:center; margin-bottom:24px;">
+    <p style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#475569;
+       letter-spacing:0.06em; margin-bottom:16px;">// free · no account required</p>
+    <p style="font-family:'Playfair Display',serif; font-size:1.2rem; color:#f0f4ff;
+       margin-bottom:8px;">Enter your email to use this free tool</p>
+    <p style="color:#64748b; font-size:0.82rem; margin-bottom:24px; line-height:1.5;">
+      We'll send you your Form 16 summary. No spam.
+    </p>
+    <div style="max-width:380px; margin:0 auto;">
+      <input type="email" id="f16-gate-email" placeholder="your@email.com"
+             style="width:100%; padding:11px 14px; background:#1e293b; border:1px solid #334155;
+             border-radius:8px; color:#e2e8f0; font-size:0.92rem; font-family:'DM Sans',sans-serif;
+             box-sizing:border-box; margin-bottom:10px; outline:none;">
+      <div id="f16-gate-error" style="display:none; color:#f87171; font-size:0.78rem;
+           margin-bottom:10px; text-align:left;"></div>
+      <button onclick="submitF16Gate()"
+              style="width:100%; padding:12px; background:#3b82f6; color:#fff; border:none;
+              border-radius:8px; font-size:0.95rem; font-weight:700; cursor:pointer;
+              font-family:'Playfair Display',serif;">
+        Continue to analyser →
+      </button>
+    </div>
+  </div>
+
+  <!-- Upload Card — hidden until gated -->
+  <div id="f16-form-inner" style="display:none;">
   <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:28px; margin-bottom:24px;">
     <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#3b82f6;
          letter-spacing:0.06em; margin-bottom:20px;">// upload your form 16</div>
@@ -173,6 +200,7 @@ footer a { color: var(--amber); text-decoration: none; }
          background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.3);
          border-radius:8px; color:#f87171; font-size:0.85rem;"></div>
   </div>
+  </div><!-- /f16-form-inner -->
 
   <!-- Status -->
   <div id="f16-status" style="display:none; text-align:center; padding:24px; color:#64748b; font-size:0.85rem;">
@@ -192,6 +220,42 @@ footer a { color: var(--amber); text-decoration: none; }
 </footer>
 
 <script>
+// Skip gate if email already captured this session
+(function() {
+  if (sessionStorage.getItem('ais_email_captured')) {
+    document.getElementById('f16-gate').style.display = 'none';
+    document.getElementById('f16-form-inner').style.display = 'block';
+  }
+})();
+
+function submitF16Gate() {
+  const email = document.getElementById('f16-gate-email').value.trim();
+  const errEl = document.getElementById('f16-gate-error');
+  errEl.style.display = 'none';
+  fetch('https://api.sageapps.in/taxsage-api/capture-lead', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({email: email, feature: 'form16-analyser'})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) {
+      errEl.textContent = data.message || 'Please enter a valid email.';
+      errEl.style.display = 'block';
+      return;
+    }
+    sessionStorage.setItem('ais_email_captured', '1');
+    document.getElementById('f16-gate').style.display = 'none';
+    document.getElementById('f16-form-inner').style.display = 'block';
+  })
+  .catch(() => {
+    // On network error, let them through anyway
+    sessionStorage.setItem('ais_email_captured', '1');
+    document.getElementById('f16-gate').style.display = 'none';
+    document.getElementById('f16-form-inner').style.display = 'block';
+  });
+}
+
 function fINR(n) {
   if (n === null || n === undefined || n === '') return '—';
   return '₹' + Math.abs(Math.round(n)).toLocaleString('en-IN');
