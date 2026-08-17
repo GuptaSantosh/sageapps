@@ -21,9 +21,9 @@ const CONFIG: Record<DataState, { dot: string; label: string; text: string }> = 
     text: "text-amber-400",
   },
   "not-connected": {
-    dot: "bg-zinc-600",
+    dot: "bg-muted-foreground/40",
     label: "Not connected",
-    text: "text-zinc-500",
+    text: "text-muted-foreground/60",
   },
 };
 

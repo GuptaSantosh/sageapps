@@ -80,11 +80,11 @@ export default function OverviewPage() {
               ].map(({ label }) => (
                 <div key={label} className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">{label}</span>
-                  <span className="font-mono text-[11px] text-zinc-600">not monitored</span>
+                  <span className="font-mono text-[11px] text-muted-foreground/50">not monitored</span>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-zinc-700 mt-3 leading-relaxed">
+            <p className="text-[10px] text-muted-foreground/40 mt-3 leading-relaxed">
               Real health checks not yet wired. Add a /api/health endpoint to enable live status.
             </p>
           </div>

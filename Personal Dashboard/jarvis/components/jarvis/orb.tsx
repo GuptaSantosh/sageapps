@@ -28,8 +28,8 @@ export function JarvisOrb({ state }: JarvisOrbProps) {
           style={{
             inset: -3,
             border: '1px solid transparent',
-            borderTopColor: 'rgba(16,185,129,0.45)',
-            borderRightColor: 'rgba(16,185,129,0.20)',
+            borderTopColor: 'rgba(45,212,160,0.45)',
+            borderRightColor: 'rgba(45,212,160,0.20)',
             animation: 'orb-ring-spin 2.2s linear infinite',
           }}
         />
@@ -40,8 +40,8 @@ export function JarvisOrb({ state }: JarvisOrbProps) {
         className="absolute inset-0 rounded-full"
         style={{
           background:
-            'radial-gradient(circle at 38% 34%, rgba(16,185,129,0.14) 0%, rgba(16,185,129,0.05) 38%, rgba(9,9,11,0.97) 72%, rgba(9,9,11,1) 100%)',
-          border: '1px solid rgba(16,185,129,0.18)',
+            'radial-gradient(circle at 38% 34%, rgba(45,212,160,0.14) 0%, rgba(45,212,160,0.05) 38%, rgba(10,15,30,0.97) 72%, rgba(10,15,30,1) 100%)',
+          border: '1px solid rgba(45,212,160,0.18)',
           animation: isThinking
             ? 'orb-thinking-pulse 1.8s ease-in-out infinite'
             : 'orb-idle-breath 7s ease-in-out infinite',
@@ -67,7 +67,7 @@ export function JarvisOrb({ state }: JarvisOrbProps) {
         style={{
           inset: 12,
           background:
-            'radial-gradient(circle at 60% 65%, rgba(16,185,129,0.08) 0%, transparent 70%)',
+            'radial-gradient(circle at 60% 65%, rgba(45,212,160,0.08) 0%, transparent 70%)',
         }}
       />
 
@@ -81,11 +81,11 @@ export function JarvisOrb({ state }: JarvisOrbProps) {
             height: 5,
             borderRadius: '50%',
             background: isThinking
-              ? 'rgba(16,185,129,0.85)'
-              : 'rgba(16,185,129,0.50)',
+              ? 'rgba(45,212,160,0.85)'
+              : 'rgba(45,212,160,0.50)',
             boxShadow: isThinking
-              ? '0 0 8px rgba(16,185,129,0.6), 0 0 2px rgba(16,185,129,0.8)'
-              : '0 0 5px rgba(16,185,129,0.35)',
+              ? '0 0 8px rgba(45,212,160,0.6), 0 0 2px rgba(45,212,160,0.8)'
+              : '0 0 5px rgba(45,212,160,0.35)',
             transition: 'all 0.4s ease',
           }}
         />

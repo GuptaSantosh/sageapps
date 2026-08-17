@@ -32,7 +32,7 @@ function timeAgo(iso: string): string {
 }
 
 const STATUS_CONFIG = {
-  idle: { label: "Idle", color: "text-muted-foreground", dot: "bg-zinc-600" },
+  idle: { label: "Idle", color: "text-muted-foreground", dot: "bg-muted-foreground/40" },
   running: { label: "Running", color: "text-blue-400", dot: "bg-blue-400 animate-pulse" },
   "needs-approval": { label: "Needs Approval", color: "text-amber-400", dot: "bg-amber-400" },
   error: { label: "Error", color: "text-red-400", dot: "bg-red-400" },
