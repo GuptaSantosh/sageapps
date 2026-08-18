@@ -578,10 +578,10 @@ export function OppDetail({ opp, onClose, note, onStatusChange, onChecklistChang
               </span>
               {opp.recommendationReason}
               {note?.rejectionReason && (
-                <p className="mt-1 text-red-400/70 italic">"{note.rejectionReason}"</p>
+                <p className="mt-1 text-red-400/70 italic">&ldquo;{note.rejectionReason}&rdquo;</p>
               )}
               {note?.watchNote && (
-                <p className="mt-1 text-muted-foreground/70 italic">"{note.watchNote}"</p>
+                <p className="mt-1 text-muted-foreground/70 italic">&ldquo;{note.watchNote}&rdquo;</p>
               )}
             </div>
           )}
@@ -642,7 +642,7 @@ export function OppDetail({ opp, onClose, note, onStatusChange, onChecklistChang
                     <p className="text-xs text-muted-foreground">
                       Move to{" "}
                       <span className="text-emerald-400 font-medium">Build</span>? This signals
-                      you're committed to building this.
+                      you&apos;re committed to building this.
                     </p>
                   )}
                   <div className="flex items-center gap-2">

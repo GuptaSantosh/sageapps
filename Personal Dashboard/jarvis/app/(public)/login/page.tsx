@@ -21,13 +21,22 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const raw = params.callbackUrl ?? "";
 
-  // Sanitize: only accept same-origin paths
+  // Sanitize: only accept same-origin relative paths.
+  // Rejection criteria (any one fails → fall back to "/"):
+  //   - not a string, or empty
+  //   - doesn't start with "/" (absolute URL, e.g. "https://evil.com")
+  //   - starts with "//" (protocol-relative URL, e.g. "//evil.com")
+  //   - starts with "/login" (avoids redirect loops)
+  //   - starts with "/api/auth" (avoids redirecting into auth endpoints)
+  //   - contains ":" before the first "/" (catches "javascript:" and similar)
   const safeCallbackUrl =
     typeof raw === "string" &&
+    raw.length > 0 &&
     raw.startsWith("/") &&
     !raw.startsWith("//") &&
     !raw.startsWith("/login") &&
-    !raw.startsWith("/api/auth")
+    !raw.startsWith("/api/auth") &&
+    !/^[^/]*:/.test(raw)
       ? raw
       : "/";
 
