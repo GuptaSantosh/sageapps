@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   Bot,
@@ -11,6 +12,7 @@ import {
   Zap,
   AlertCircle,
   Target,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AGENTS } from "@/lib/mock-data";
@@ -89,17 +91,24 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-sidebar-border">
+      {/* Footer — owner identity + sign out */}
+      <div className="px-4 py-4 border-t border-sidebar-border space-y-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold">
+          <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold flex-shrink-0">
             SG
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-foreground truncate">Santosh Gupta</p>
             <p className="text-[10px] text-muted-foreground truncate">Founder</p>
           </div>
         </div>
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 transition-all duration-100"
+        >
+          <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
+          Sign out
+        </button>
       </div>
     </aside>
   );
