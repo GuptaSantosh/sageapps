@@ -128,10 +128,81 @@ TLS cert: Let's Encrypt, expires 2026-11-18, auto-renewal registered.
 
 Existing Supervisor services (must never be disturbed): `cleansage`, `finsage`, `mailsage-auth`, `mailsage-bot`, `taxsage`.
 
-## Proposed Future Architecture (CANDIDATE — not approved)
+## Approved Step 5 Persistence Architecture
 
-**Step 5: SQLite persistence for Opportunity Radar.**
+**SQLite + `better-sqlite3` + Drizzle ORM — approved 2026-08-20.**
 
-Candidate stack: `better-sqlite3` + `drizzle-orm` + Next.js Server Actions. Data file at `/home/jarvis/data/jarvis.db` (outside git repo). Page refactored from `"use client"` with `useState` to Server Component fetching from DB, passing to a Client Component shell.
+All prerequisites verified on the droplet (see `docs/CURRENT_STATE.md`).
 
-**This is a candidate only.** Prerequisites unverified — see `docs/CURRENT_STATE.md` for unresolved questions before approving.
+### Persistence Stack
+
+| Layer | Decision |
+|---|---|
+| Database | SQLite, WAL mode |
+| Driver | `better-sqlite3` (native module — compiles on server; toolchain confirmed) |
+| ORM / migrations | Drizzle ORM + Drizzle Kit; SQL migrations committed to git |
+| DB file | `/home/jarvis/data/jarvis.db` — outside git working tree, survives deploys |
+| Access | Server-side only (Server Actions + route handlers). Never read from a Client Component. |
+| Auth guard | Every mutation must call `requireAuth()` before touching the DB |
+| Migration strategy | Explicit controlled deploy step — never automatic on application startup |
+
+### Approved Data Flow (Step 5 target)
+
+```
+Browser (Client Component — filter/select/display only)
+  |  server action call + router.refresh()
+  v
+app/(private)/opportunities/actions.ts   (Server Actions)
+  requireAuth()  →  zod validation  →  DB query
+  v
+lib/db.ts   (singleton better-sqlite3 connection, WAL mode, runs pending migrations on deploy)
+  v
+/home/jarvis/data/jarvis.db   (outside git repo, survives restarts and deploys)
+```
+
+### Approved Schema (four tables)
+
+**`opportunities`** — core fields, status, timestamps. AI-era fields (`scorecard`, `recommendation`, detailed `thesis`) are nullable — a new genuine opportunity does not require AI evaluation data.
+
+**`opportunity_evidence`** — multiple records per opportunity. Fields: source URL (required), title, platform/type, author, date, summary, signal classification (all optional). Replaces the current `EvidenceSignal[]` array embedded in the record.
+
+**`opportunity_notes`** — multiple notes per opportunity. Supports ongoing research notes and status-related reasons. Not restricted to one rejection-reason or watch-note as in the current `oppNotes` React state.
+
+**`validation_checklist`** — one row per opportunity, auto-provisioned when status enters `validating`. Preserves current behaviour from `page.tsx:193–202`.
+
+No lifecycle-event/audit-history table in V1.
+
+### Operational Prerequisites (must be done before first DB-backed startup)
+
+```bash
+# Create data directory — SSH as root, one-time before first deploy with DB
+mkdir -p /home/jarvis/data && chown jarvis:users /home/jarvis/data && chmod 750 /home/jarvis/data
+
+# Create backups directory — must exist before real data is entrusted to the system
+mkdir -p /home/jarvis/backups && chown jarvis:users /home/jarvis/backups && chmod 750 /home/jarvis/backups
+```
+
+**Backup strategy:** use the `better-sqlite3` `.backup()` API or SQLite `.backup` command for online hot backups. Never use plain `cp` on a WAL-mode database — the WAL and SHM files must be included and consistent.
+
+### Approved Deploy Sequence (with DB)
+
+```bash
+# Server — after git pull and build:
+npx drizzle-kit migrate          # explicit migration step; run once per deploy, not on startup
+supervisorctl restart jarvis
+```
+
+### Files to be Created (implementation, not yet done)
+
+| File | Purpose |
+|---|---|
+| `lib/db/schema.ts` | Drizzle table definitions |
+| `lib/db/index.ts` | Singleton `better-sqlite3` connection, WAL mode |
+| `lib/db/queries.ts` | Typed query helpers |
+| `drizzle.config.ts` | Drizzle Kit config (`JARVIS_DB_PATH` env var) |
+| `migrations/` | Generated SQL migration files (committed to git) |
+| `app/(private)/opportunities/actions.ts` | Server Actions: create, updateStatus, updateChecklist, updateNotes |
+
+### Seed Behaviour
+
+Production starts **empty**. The seven fictional opportunities in `lib/opportunity-data.ts` must not be seeded into the production database. That file may remain as a non-production fixture/reference until safely removed.

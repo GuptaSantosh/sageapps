@@ -1,7 +1,7 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-08-20
+> Last updated: 2026-08-20 (persistence decision approved)
 
 ## What Is Complete
 
@@ -62,31 +62,35 @@ Goal: replace the demo Opportunity Radar with a genuine persistence-backed verti
 
 ### Exact Next Action
 
-**Read-only verification of DigitalOcean prerequisites before approving persistence technology.**
+**Implement the local persistence foundation only: dependencies, schema, generated initial migration and database connection. Do not connect the UI or change production yet.**
 
-Specifically, verify on the droplet before writing any code:
-1. `build-essential` and `python3` present (required for native module compilation)
-2. `node-gyp` can compile a native addon (`npm install better-sqlite3` test or equivalent)
-3. Confirm `/home/jarvis/data/` can be created and is writable by the `jarvis` user
-4. Confirm the directory survives a `supervisorctl restart jarvis` without being cleared
+## Approved Persistence Decisions (2026-08-20)
 
-Only after those checks pass, approve the persistence technology and proceed to implementation.
+All previously unresolved design questions are now closed:
 
-## Unresolved Design Decisions
-
-These must be answered before implementation begins:
-
-| # | Question | Status |
+| # | Decision | Status |
 |---|---|---|
-| 1 | **SQLite/better-sqlite3/Drizzle recommended but not approved** — native module prerequisite unverified on the droplet | Unresolved |
-| 2 | **Native module compatibility on the droplet** — does `build-essential`/`python3`/`node-gyp` work? Alternative: `@libsql/client` local file mode (pure JS, no compile) | Unverified |
-| 3 | **Production database path and permissions** — proposed `/home/jarvis/data/jarvis.db` (outside git repo) must be verified writable by `jarvis` user | Unverified |
-| 4 | **Seed behaviour** — should the 7 demo records seed the production DB, or should production start empty? Preference is to start empty (no demo records in production) | Decision needed |
-| 5 | **Manual evidence/source URLs** — V1 must support adding real source URLs per opportunity (currently `url?: string` is always `undefined` in demo data) | Required in V1 |
-| 6 | **Research notes** — must support genuine freeform notes per opportunity, not only the limited rejection-reason/watch-note text currently in `oppNotes` state | Required in V1 |
-| 7 | **Scorecard and recommendation fields** — these are AI-generated in the intended design; in V1 they should be optional/nullable until AI evaluation is wired, not required on manual creation | Design decision |
-| 8 | **Migration execution during deploy** — run `drizzle-kit migrate` in `start.sh` before `next start`, or as a separate deploy step? Tradeoff: automatic safety vs. slower startup | Undecided |
-| 9 | **Backup approach** — proposed: daily `cp jarvis.db jarvis-YYYYMMDD.db` cron under `jarvis` user | Undecided |
+| 1 | **SQLite + `better-sqlite3` + Drizzle ORM** — approved | Approved |
+| 2 | **Native module build readiness** — gcc 13, python 3.12, make, build-essential all confirmed on droplet; node-gyp v13.0.1 available via npx | Verified |
+| 3 | **DB path** — `/home/jarvis/data/jarvis.db`; outside git tree; `/home/jarvis` owned by `jarvis:users`; deploy cannot touch it | Verified |
+| 4 | **Seed behaviour** — production starts empty; fictional demo records must NOT be seeded | Approved |
+| 5 | **Evidence URLs** — `opportunity_evidence` table (multiple per opportunity); required in V1 | Approved |
+| 6 | **Research notes** — `opportunity_notes` table (multiple per opportunity, freeform); not limited to rejection/watch text | Approved |
+| 7 | **Scorecard/recommendation** — nullable/optional; creating a real opportunity must not require AI evaluation fields | Approved |
+| 8 | **Migration strategy** — explicit deploy step (`npx drizzle-kit migrate`) before restart; never automatic on startup | Approved |
+| 9 | **Backup strategy** — use `better-sqlite3` `.backup()` API or SQLite `.backup` command (WAL-consistent online backup); never plain `cp` on a WAL-mode file | Approved |
+
+## Operational Prerequisites (not yet executed)
+
+These two server commands must be run before the first DB-backed application startup:
+
+```bash
+# SSH as root — one-time setup:
+mkdir -p /home/jarvis/data && chown jarvis:users /home/jarvis/data && chmod 750 /home/jarvis/data
+mkdir -p /home/jarvis/backups && chown jarvis:users /home/jarvis/backups && chmod 750 /home/jarvis/backups
+```
+
+`/home/jarvis/backups` and automated backups must be in place before meaningful real data is committed to the system.
 
 ## Deploy Reference
 
@@ -96,8 +100,9 @@ git add <files> && git commit -m "..." && git push   # use preconfigured Git aut
 
 # Server (SSH as root)
 cd /home/jarvis/sageapps && git pull
-npm ci                            # only if package.json changed or native modules added
+npm ci                            # required if package.json changed or native modules added
 npm run build -- --webpack
+npx drizzle-kit migrate           # explicit migration step — only when schema changed; run before restart
 supervisorctl restart jarvis
 
 # Verify
