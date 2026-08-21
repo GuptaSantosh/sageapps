@@ -1,13 +1,38 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-08-20 (Step 5.1 persistence foundation implemented — not yet connected to UI)
+> Last updated: 2026-08-21 (Step 5.2 server-side data and mutation layer complete — UI not yet connected)
 
 ## What Is Complete
 
-### Step 5.1 — Persistence Foundation (complete, not yet connected to UI)
+### Step 5.2 — Server-side data and mutation layer (complete, UI not yet connected)
 
-All files implemented locally. Build and TypeScript both clean. Not committed/pushed yet. UI unchanged — Opportunity Radar still runs on client-side React state.
+Build, TypeScript, lint (0 errors) and `npm audit --omit=dev` (0 vulnerabilities) all pass.
+Disposable local migration verified cleanly; test DB removed. UI unchanged — still client-side React state.
+
+| File | Content |
+|---|---|
+| `lib/db/queries.ts` | Pure DB layer: `listOpportunities`, `getOpportunity`, `getEvidence`, `getNotes`, `getChecklist`, `createOpportunity`, `updateOpportunityFields`, `updateOpportunityStatus` (atomic tx), `updateChecklist`, `addEvidence`, `removeEvidence`, `addNote`, `removeNote`. Exports `ALLOWED_TRANSITIONS` map. |
+| `app/(private)/opportunities/actions.ts` | Server Actions: `createOpportunityAction`, `updateOpportunityFieldsAction`, `updateOpportunityStatusAction`, `updateChecklistAction`, `addEvidenceAction`, `removeEvidenceAction`, `addNoteAction`, `removeNoteAction`, `listOpportunitiesAction`, `getOpportunityAction`. All call `requireAuth()`, validate with Zod 4, return `ActionResult<T>`, call `revalidatePath('/opportunities')`. |
+| `package.json` / `package-lock.json` | `zod@4.4.3` added to `dependencies`. |
+| `lib/db/index.ts` | Removed unnecessary `eslint-disable` comment (no-var rule not active for `declare global`). |
+
+**Design notes:**
+- `updatedAt` is set explicitly on every mutation; no DB trigger.
+- `updateOpportunityStatus` does all writes (status + checklist provisioning + optional note) in a single `db.transaction()`.
+- Checklist limits enforced in Zod: `conversationsCompleted` 0–5, `problemConfirmed` 0–3, `solutionRequested` 0–2; booleans 0–1.
+- Evidence URLs must match `http://` or `https://` (Zod `.refine()`).
+- `requireAuth()` is called outside try/catch so Next.js `redirect()` propagates correctly.
+- Tags serialized as JSON strings in DB; deserialized at the UI layer.
+- `crypto.randomUUID()` used for all IDs (Node 24 built-in).
+
+**Known concerns:**
+- `updatedAt` on `opportunity_notes` and `opportunities` is not auto-updated by SQLite; callers must set it. Query helpers do this.
+- Status/signal-type enum values still enforced only at Zod layer, not DB CHECK constraints (intentional V1 design decision).
+
+### Step 5.1 — Persistence Foundation (complete, committed ebbf2fa)
+
+All files implemented locally. Build and TypeScript both clean. UI unchanged — Opportunity Radar still runs on client-side React state.
 
 | File | Status |
 |---|---|
@@ -85,16 +110,17 @@ Goal: replace the demo Opportunity Radar with a genuine persistence-backed verti
 
 ### Exact Next Action
 
-**Step 5.2 — Connect the Opportunity Radar UI to the database.**
+**Step 5.3 — Connect the Opportunity Radar UI to the database.**
 
-Implement the persistence-backed vertical slice:
-1. `lib/db/queries.ts` — typed query helpers (list, get, create, updateStatus, updateChecklist, addNote, addEvidence)
-2. `app/(private)/opportunities/actions.ts` — Server Actions calling `requireAuth()` then query helpers
-3. Replace `app/(private)/opportunities/page.tsx` client-side state with server-fetched data + `router.refresh()` pattern
-4. Replace the 7 hard-coded demo records in `lib/opportunity-data.ts` with real DB reads (remove after migration)
-5. Add UI for creating new opportunities (form with title, problemStatement, targetCustomer, customerType, discoveredAt)
+Replace the client-side demo state with real server-backed data:
+1. Convert `app/(private)/opportunities/page.tsx` from `"use client"` to a Server Component. Fetch live opportunity list via `listOpportunitiesAction` (or call `listOpportunities` directly).
+2. Wire `OppDetail` status transitions to `updateOpportunityStatusAction`.
+3. Wire checklist changes to `updateChecklistAction`.
+4. Add a "New Opportunity" form that calls `createOpportunityAction`.
+5. Add evidence and note panels calling `addEvidenceAction` / `addNoteAction` / `removeEvidenceAction` / `removeNoteAction`.
+6. Remove dependency on the 7 hard-coded records in `lib/opportunity-data.ts` (keep file until all references are removed).
 
-Do not seed demo data into the database. Production starts empty.
+Production starts empty — do not seed demo data.
 
 ## Approved Persistence Decisions (2026-08-20)
 

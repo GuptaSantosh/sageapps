@@ -24,7 +24,6 @@ type JarvisDb = BetterSQLite3Database<typeof schema>;
 
 // Extend globalThis for the HMR singleton (dev only; production has one process lifetime).
 declare global {
-  // eslint-disable-next-line no-var
   var __jarvisDb: JarvisDb | undefined;
 }
 
