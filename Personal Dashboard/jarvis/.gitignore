@@ -40,3 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# SQLite database files — production DB lives outside the git tree at /home/jarvis/data/
+# Dev DB lives in data/ which is also ignored.
+data/
+*.db
+*.db-wal
+*.db-shm
