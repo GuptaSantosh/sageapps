@@ -29,8 +29,10 @@ import {
   updateChecklist,
   addEvidence,
   removeEvidence,
+  updateEvidence,
   addNote,
   removeNote,
+  updateNote,
 } from "@/lib/db/queries";
 import type { OpportunityRow, EvidenceRow, NoteRow, ChecklistRow } from "@/lib/db/schema";
 
@@ -101,6 +103,24 @@ const AddEvidenceSchema = z.object({
 });
 
 const AddNoteSchema = z.object({
+  noteType: z.enum(["research", "status"]).default("research"),
+  body:     z.string().min(1, "Note body is required").max(10000),
+});
+
+const UpdateEvidenceSchema = z.object({
+  url: z
+    .string()
+    .url("Must be a valid URL")
+    .refine(
+      (u) => u.startsWith("http://") || u.startsWith("https://"),
+      "Only HTTP and HTTPS URLs are allowed"
+    ),
+  title:    z.string().max(500).optional(),
+  platform: z.string().max(100).optional(),
+  summary:  z.string().max(2000).optional(),
+});
+
+const UpdateNoteSchema = z.object({
   noteType: z.enum(["research", "status"]).default("research"),
   body:     z.string().min(1, "Note body is required").max(10000),
 });
@@ -309,6 +329,50 @@ export async function addNoteAction(
     return { ok: true, data: { id: row.id } };
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Failed to add note");
+  }
+}
+
+/** Update an existing evidence record */
+export async function updateEvidenceAction(
+  evidenceId: string,
+  input: unknown
+): Promise<ActionResult> {
+  await requireAuth();
+  try {
+    if (!evidenceId) return fail("Evidence ID is required");
+    const parsed = UpdateEvidenceSchema.safeParse(input);
+    if (!parsed.success) return fail(firstIssue(parsed.error));
+    updateEvidence(evidenceId, {
+      url:      parsed.data.url,
+      title:    parsed.data.title || null,
+      platform: parsed.data.platform || null,
+      summary:  parsed.data.summary || null,
+    });
+    revalidatePath("/opportunities");
+    return { ok: true, data: undefined };
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Failed to update evidence");
+  }
+}
+
+/** Update an existing note body or type */
+export async function updateNoteAction(
+  noteId: string,
+  input: unknown
+): Promise<ActionResult> {
+  await requireAuth();
+  try {
+    if (!noteId) return fail("Note ID is required");
+    const parsed = UpdateNoteSchema.safeParse(input);
+    if (!parsed.success) return fail(firstIssue(parsed.error));
+    updateNote(noteId, {
+      noteType: parsed.data.noteType as "research" | "status",
+      body:     parsed.data.body,
+    });
+    revalidatePath("/opportunities");
+    return { ok: true, data: undefined };
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Failed to update note");
   }
 }
 

@@ -282,3 +282,33 @@ export function removeNote(noteId: string): void {
     .where(eq(opportunityNotes.id, noteId))
     .run();
 }
+
+export interface UpdateEvidenceInput {
+  url?: string;
+  title?: string | null;
+  platform?: string | null;
+  summary?: string | null;
+}
+
+export function updateEvidence(evidenceId: string, fields: UpdateEvidenceInput): void {
+  if (Object.keys(fields).length === 0) return;
+  getDb()
+    .update(opportunityEvidence)
+    .set(fields)
+    .where(eq(opportunityEvidence.id, evidenceId))
+    .run();
+}
+
+export interface UpdateNoteInput {
+  noteType?: "research" | "status";
+  body?: string;
+}
+
+export function updateNote(noteId: string, fields: UpdateNoteInput): void {
+  if (Object.keys(fields).length === 0) return;
+  getDb()
+    .update(opportunityNotes)
+    .set({ ...fields, updatedAt: nowIso() })
+    .where(eq(opportunityNotes.id, noteId))
+    .run();
+}

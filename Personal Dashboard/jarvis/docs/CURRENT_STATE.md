@@ -1,9 +1,35 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-08-21 (Step 5.3 core UI connected to database — create/edit live, lifecycle/checklist/evidence/notes deferred)
+> Last updated: 2026-08-22 (Step 5.4 complete — evidence/notes add/edit/remove, all checks pass)
 
 ## What Is Complete
+
+### Step 5.4 — Evidence and research notes UI (complete, committed pending)
+
+Build, TypeScript, lint (0 errors), `npm audit --omit=dev` (0 vulnerabilities), `git diff --check` all pass.
+
+| File | Change |
+|---|---|
+| `lib/db/queries.ts` | Added `updateEvidence(evidenceId, UpdateEvidenceInput)` and `updateNote(noteId, UpdateNoteInput)` query helpers; new `UpdateEvidenceInput` and `UpdateNoteInput` interface exports |
+| `app/(private)/opportunities/actions.ts` | Added `updateEvidenceAction` and `updateNoteAction` server actions with `UpdateEvidenceSchema` / `UpdateNoteSchema` Zod validation; empty strings for optional text fields converted to `null` (clears field in DB) |
+| `components/opportunities/opp-detail-panel.tsx` | Added inline edit UI for evidence (URL, title, platform, summary) and notes (body, type); pencil icon beside each delete icon; clicking edit closes any open add form and prefills the row's current values; save calls update action then reloads panel; cancel restores read view; shared `EvidenceForm` and `NoteForm` sub-components avoid duplication between add and edit paths; `useTransition` for save pending state |
+| `components/opportunities/opportunities-client.tsx` | Added `OppDetailPanel` import; renders `<OppDetailPanel key={selectedOpp.id} …>` — key prop remounts on selection change |
+
+**User-visible behaviour:**
+- Evidence and Research Notes sections appear below the core opportunity fields
+- **Add**: "Add" button opens inline form; URL required (HTTP/HTTPS validated); title, platform, summary optional
+- **Edit**: pencil icon on each row opens prefilled inline form with primary border; Save/Cancel buttons; save persists immediately and survives reload
+- **Remove**: trash icon with `window.confirm()` dialog; optimistic removal from local list + `router.refresh()`
+- Evidence URLs render as safe external links (`target="_blank"` `rel="noopener noreferrer"`)
+- Notes show research/status type badge and creation date; type can be changed on edit
+- Switching opportunity remounts the panel — clean state, no stale data
+- Loading spinner shown while fetching; per-field error messages on validation failure
+
+**Design notes:**
+- `OppDetailPanel` uses `key={opportunityId}` (parent side) so React remounts on selection change — avoids synchronous `setState` in `useEffect` body (lint rule `react-hooks/set-state-in-effect`)
+- Only one evidence row and one note row can be in edit mode at a time; opening a second edit cancels the first
+- `Add` button hidden while any row in that section is in edit mode (prevents conflicting form state)
 
 ### Step 5.3 — Core UI connected to database (complete, committed pending)
 
@@ -139,14 +165,14 @@ Goal: replace the demo Opportunity Radar with a genuine persistence-backed verti
 
 ### Exact Next Action
 
-**Step 5.4 — Lifecycle transitions in the UI.**
+**Step 5.5 — Lifecycle status transitions in the UI.**
 
-Wire the existing `OppDetail` component (or a new detail panel) to the server actions:
-1. Connect lifecycle status transition buttons to `updateOpportunityStatusAction`.
-2. Connect validation checklist fields to `updateChecklistAction`.
-3. Add evidence panel: list existing evidence rows (from `getEvidence`), add via `addEvidenceAction`, remove via `removeEvidenceAction`.
-4. Add notes panel: list notes (from `getNotes`), add via `addNoteAction`, remove via `removeNoteAction`.
-5. Consider retiring or repurposing `OppDetail` component — it targets the old `OpportunityRecord` type, not `OpportunityRow`.
+Wire lifecycle status controls to `updateOpportunityStatusAction`:
+1. Add transition buttons to the detail panel header (or a dedicated section below the core fields). Show only the transitions allowed from the current status (`ALLOWED_TRANSITIONS` exported from `lib/db/queries.ts`).
+2. Optional: show a note textarea that becomes a `status` note when the transition is confirmed.
+3. Entering `validating` automatically provisions a blank checklist (handled server-side in `updateOpportunityStatus`).
+4. Connect validation checklist fields to `updateChecklistAction` — show only when `status === "validating"` and a checklist row exists.
+5. Consider retiring or repurposing the legacy `OppDetail` component (`components/opportunities/opp-detail.tsx`) — it targets the old `OpportunityRecord` type. Only `STATUS_CONFIG` is currently imported from it; extract that export and delete the rest.
 6. Once all references to `lib/opportunity-data.ts` and `lib/agents/opportunity-radar.ts` are gone, delete them.
 
 Production starts empty — do not seed demo data.

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { STATUS_CONFIG } from "@/components/opportunities/opp-detail";
 import { OpportunityForm } from "@/components/opportunities/opportunity-form";
+import { OppDetailPanel } from "@/components/opportunities/opp-detail-panel";
 import { cn } from "@/lib/utils";
 import type { OpportunityRow } from "@/lib/db/schema";
 import type { OpportunityStatus } from "@/lib/types";
@@ -595,6 +596,11 @@ export function OpportunitiesClient({
                     )}
                   </div>
                 )}
+
+                {/* Evidence and research notes — fetched from DB per opportunity.
+                    key={id} remounts the panel when selection changes, giving
+                    it a clean initial state without synchronous effect setStates. */}
+                <OppDetailPanel key={selectedOpp.id} opportunityId={selectedOpp.id} />
               </div>
             )}
           </div>
