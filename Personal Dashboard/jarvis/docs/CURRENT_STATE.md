@@ -1,11 +1,40 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-08-21 (Step 5.2 server-side data and mutation layer complete — UI not yet connected)
+> Last updated: 2026-08-21 (Step 5.3 core UI connected to database — create/edit live, lifecycle/checklist/evidence/notes deferred)
 
 ## What Is Complete
 
-### Step 5.2 — Server-side data and mutation layer (complete, UI not yet connected)
+### Step 5.3 — Core UI connected to database (complete, committed pending)
+
+Build, TypeScript, lint (0 errors), `npm audit --omit=dev` (0 vulnerabilities) all pass.
+Dev DB migration applied and create/update/delete cycle verified; no test data remains.
+
+| File | Change |
+|---|---|
+| `app/(private)/opportunities/page.tsx` | Replaced with thin Server Component; calls `listOpportunities()` directly and renders `<OpportunitiesClient>` |
+| `components/opportunities/opportunities-client.tsx` | New client component — status filter pills, title/date sort, live stats strip (total/validate-now/validating), table rows from `OpportunityRow`, polished empty state, create form inline, selected-row detail panel with edit toggle |
+| `components/opportunities/opportunity-form.tsx` | New client component — create and edit form; `useTransition` for pending state; calls `createOpportunityAction` / `updateOpportunityFieldsAction`; `router.refresh()` on success |
+
+**User-visible behaviour:**
+- Page loads with real database records (empty state when none exist)
+- "New Opportunity" button opens inline create form with title, problem statement, target customer, customer type, discovered-on date, tags
+- Clicking a row opens a detail panel; "Edit" shows the edit form pre-filled
+- Status filter pills show live counts; title and date sort work
+- Tags rendered as inline chips in table rows and detail panel
+- AI-era fields (recommendation, etc.) shown in the detail panel only when non-null
+- Demo banner removed; demo data not displayed
+
+**Not yet connected (deferred to Step 5.4):**
+- Lifecycle status transitions (the `OppDetail` component and its `TRANSITIONS` map)
+- Validation checklist
+- Evidence URLs and research notes
+
+**Known concerns:**
+- `lib/opportunity-data.ts` (7 fictional records) and `lib/agents/opportunity-radar.ts` (mock simulation) are unused by the live data path but retained as reference; the "Run Radar" button still runs the client-side simulation only.
+- `OppDetail` component is still imported nowhere in the live path; it compiles but is disconnected.
+
+### Step 5.2 — Server-side data and mutation layer (complete, committed dbd3a76)
 
 Build, TypeScript, lint (0 errors) and `npm audit --omit=dev` (0 vulnerabilities) all pass.
 Disposable local migration verified cleanly; test DB removed. UI unchanged — still client-side React state.
@@ -87,9 +116,9 @@ All of these display mock data and have no server-side persistence:
 
 | Module | File | State |
 |---|---|---|
-| Opportunity Radar | `app/(private)/opportunities/page.tsx` | Client-only React state, resets on reload |
-| Opportunity detail / lifecycle | `components/opportunities/opp-detail.tsx` | Session-only mutations |
-| Opportunity data | `lib/opportunity-data.ts` | 7 hard-coded demo records |
+| Opportunity Radar list + create/edit | `app/(private)/opportunities/page.tsx` + `opportunities-client.tsx` | **Live — real SQLite data** |
+| Opportunity detail / lifecycle | `components/opportunities/opp-detail.tsx` | Disconnected from live path; deferred to Step 5.4 |
+| Opportunity data | `lib/opportunity-data.ts` | 7 hard-coded demo records — not displayed; retained as reference |
 | Radar agent run | `lib/agents/opportunity-radar.ts` | Simulated 3.2s delay, demo text output |
 | Overview metrics | `app/(private)/page.tsx` | Demo badges (`DataState: 'demo'`) |
 | Agents page | `app/(private)/agents/page.tsx` | Demo/mock |
@@ -110,15 +139,15 @@ Goal: replace the demo Opportunity Radar with a genuine persistence-backed verti
 
 ### Exact Next Action
 
-**Step 5.3 — Connect the Opportunity Radar UI to the database.**
+**Step 5.4 — Lifecycle transitions in the UI.**
 
-Replace the client-side demo state with real server-backed data:
-1. Convert `app/(private)/opportunities/page.tsx` from `"use client"` to a Server Component. Fetch live opportunity list via `listOpportunitiesAction` (or call `listOpportunities` directly).
-2. Wire `OppDetail` status transitions to `updateOpportunityStatusAction`.
-3. Wire checklist changes to `updateChecklistAction`.
-4. Add a "New Opportunity" form that calls `createOpportunityAction`.
-5. Add evidence and note panels calling `addEvidenceAction` / `addNoteAction` / `removeEvidenceAction` / `removeNoteAction`.
-6. Remove dependency on the 7 hard-coded records in `lib/opportunity-data.ts` (keep file until all references are removed).
+Wire the existing `OppDetail` component (or a new detail panel) to the server actions:
+1. Connect lifecycle status transition buttons to `updateOpportunityStatusAction`.
+2. Connect validation checklist fields to `updateChecklistAction`.
+3. Add evidence panel: list existing evidence rows (from `getEvidence`), add via `addEvidenceAction`, remove via `removeEvidenceAction`.
+4. Add notes panel: list notes (from `getNotes`), add via `addNoteAction`, remove via `removeNoteAction`.
+5. Consider retiring or repurposing `OppDetail` component — it targets the old `OpportunityRecord` type, not `OpportunityRow`.
+6. Once all references to `lib/opportunity-data.ts` and `lib/agents/opportunity-radar.ts` are gone, delete them.
 
 Production starts empty — do not seed demo data.
 
