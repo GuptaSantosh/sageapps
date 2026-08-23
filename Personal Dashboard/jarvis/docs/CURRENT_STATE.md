@@ -1,9 +1,40 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-08-22 (Step 5.5 complete — lifecycle transitions and validation checklist, all checks pass)
+> Last updated: 2026-08-23 (Step 5.6 complete — SQLite online backup utility, all checks pass)
 
 ## What Is Complete
+
+### Step 5.6 — SQLite online backup utility (complete, not yet committed)
+
+Build, TypeScript, lint (0 errors), `npm audit --omit=dev` (0 vulnerabilities), `git diff --check` all pass. Tested against a disposable local database; test files removed.
+
+| File | Change |
+|---|---|
+| `scripts/db-backup.js` | New CJS Node.js script: loads `.env.local` if present; validates `JARVIS_DB_PATH` and `JARVIS_BACKUP_DIR`; builds UTC-timestamped filename (`jarvis_YYYYMMDD_HHmmssUTC.db`); calls `better-sqlite3` async `.backup()` API (WAL-safe, never a file copy); runs `PRAGMA integrity_check` on completed backup; closes all connections in `finally`; cleans up partial file on failure; exits non-zero on any error |
+| `package.json` | Added `"db:backup": "node scripts/db-backup.js"` script |
+| `.env.example` | Added `JARVIS_BACKUP_DIR` section with setup instructions |
+| `docs/ARCHITECTURE.md` | Added "Backup Utility" section: how it works, production setup command, env var requirement, note on no automatic retention |
+
+**Usage:**
+```bash
+npm run db:backup
+# Backup:    jarvis_20260823_062108UTC.db
+# Size:      8.0 KB
+# Integrity: ok
+```
+
+**Failure modes tested:** missing `JARVIS_DB_PATH`, missing `JARVIS_BACKUP_DIR`, source file not found — all exit 1 with a clear message.
+
+**Production setup (one-time, as root):**
+```bash
+mkdir -p /home/jarvis/backups && chown jarvis:users /home/jarvis/backups && chmod 750 /home/jarvis/backups
+```
+Then add `JARVIS_BACKUP_DIR=/home/jarvis/backups` to `.env.local` on the server.
+
+No automatic retention/deletion added yet.
+
+---
 
 ### Step 5.5 — Lifecycle transitions and validation checklist (complete, uncommitted)
 

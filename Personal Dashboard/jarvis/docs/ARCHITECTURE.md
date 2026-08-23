@@ -184,6 +184,36 @@ mkdir -p /home/jarvis/backups && chown jarvis:users /home/jarvis/backups && chmo
 
 **Backup strategy:** use the `better-sqlite3` `.backup()` API or SQLite `.backup` command for online hot backups. Never use plain `cp` on a WAL-mode database — the WAL and SHM files must be included and consistent.
 
+## Backup Utility
+
+`scripts/db-backup.js` — CommonJS script, no build step required.
+
+```bash
+npm run db:backup
+```
+
+**How it works:**
+
+1. Reads `JARVIS_DB_PATH` (source) and `JARVIS_BACKUP_DIR` (destination directory) from env; loads `.env.local` if present.
+2. Fails clearly if either variable is unset, the source file does not exist, or the destination directory does not exist.
+3. Builds a UTC-timestamped filename (`jarvis_YYYYMMDD_HHmmssUTC.db`) and fails if a file with that name already exists.
+4. Calls `better-sqlite3`'s async `.backup(destPath)` API — WAL-safe online hot backup; never a raw file copy.
+5. Opens the completed backup as read-only and runs `PRAGMA integrity_check`.
+6. Closes both connections in a `finally` block; cleans up the partial file on any failure.
+7. Exits non-zero on any failure; on success prints only: filename, size, integrity result.
+
+**Production setup (one-time, as root):**
+```bash
+mkdir -p /home/jarvis/backups && chown jarvis:users /home/jarvis/backups && chmod 750 /home/jarvis/backups
+```
+
+**`.env.local` on server must include:**
+```
+JARVIS_BACKUP_DIR=/home/jarvis/backups
+```
+
+No automatic retention/deletion — run manually or via a cron job.
+
 ### Approved Deploy Sequence (with DB)
 
 ```bash
