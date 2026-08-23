@@ -1,11 +1,73 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-08-23 (Step 5.6 complete — SQLite online backup utility, all checks pass)
+> Last updated: 2026-08-23 (Opportunity Radar V1 production launch — commit ef7eaa6 deployed, accepted, complete)
 
 ## What Is Complete
 
-### Step 5.6 — SQLite online backup utility (complete, not yet committed)
+### Opportunity Radar V1 — Production Launch (deployed 2026-08-23, commit ef7eaa6)
+
+**Status: PRODUCTION-COMPLETE.** The persistence-backed manual Opportunity Radar is live at `https://jarvis.sageapps.in`. All Step 5 sub-steps (5.1–5.6) are deployed and accepted.
+
+#### Deployment record
+
+| Item | Detail |
+|---|---|
+| Deployed commit | `ef7eaa6` — `chore: add SQLite online backup utility` |
+| Deployed from | `57017ea` → `ef7eaa6` (fast-forward, 23 files, 12 226 insertions) |
+| `npm ci` | Clean — `better-sqlite3` loaded via prebuilt `linux-x64.node` |
+| Production build | `npm run build -- --webpack` — clean, all routes compiled |
+| Migration | `drizzle-kit migrate` run explicitly as `jarvis` user against `/home/jarvis/data/jarvis.db` — `[✓] migrations applied successfully!` — not triggered from application startup |
+| DB path | `/home/jarvis/data/jarvis.db` — outside git working tree, survives deploys |
+| DB ownership | `jarvis:users`, mode `640` |
+| `/home/jarvis/data/` | `jarvis:users`, mode `750` — created during deploy |
+| `/home/jarvis/backups/` | `jarvis:users`, mode `750` — created during deploy |
+
+#### Backup record
+
+| Item | Detail |
+|---|---|
+| Pre-restart backup | `jarvis_20260823_063610UTC.db`, 64.0 KB, `PRAGMA integrity_check` → `ok` |
+| Backup mechanism | `better-sqlite3` async `.backup()` API — WAL-safe online hot backup, never a file copy |
+| Daily cron | `30 2 * * *` (02:30 UTC daily, ~08:00 IST) under `jarvis` user |
+| Cron node path | `/home/jarvis/.nvm/versions/node/v24.19.0/bin/node` (absolute) |
+| Cron log | `/home/jarvis/logs/db-backup.log` |
+| First scheduled run | **Not yet verified** — confirm after first 02:30 UTC run: `tail /home/jarvis/logs/db-backup.log` |
+| Retention/deletion | Not configured — no automatic deletion yet |
+
+#### HTTP verification
+
+| Check | Result |
+|---|---|
+| `http://127.0.0.1:3000/login` | 200 |
+| `http://127.0.0.1:3000/` (protected) | 307 → `/login` |
+| `http://127.0.0.1:3000/opportunities` (protected) | 307 → `/login` |
+| `https://jarvis.sageapps.in/login` | 200 |
+
+#### Manual production acceptance
+
+Passed by Santosh on 2026-08-23:
+- GitHub OAuth login and session
+- Opportunity create, edit, delete
+- Evidence URLs: add, edit, remove
+- Research notes: add, edit, remove
+- Lifecycle transitions across all states (new → investigating → validate-now → validating → build; watch; rejected; reinvestigate; reconsider)
+- Validation checklist toggles and counters (optimistic update + persist)
+- All data persists across page reloads and browser restarts
+
+#### Other services
+
+All five existing Supervisor services (`cleansage`, `finsage`, `mailsage-auth`, `mailsage-bot`, `taxsage`) were untouched throughout — original PIDs and uptimes unchanged.
+
+---
+
+#### Next product step
+
+**AI-assisted evaluation rubric** — define the 10-dimension scoring rubric and its weighting before selecting or integrating any AI provider. No AI provider, SDK, or API key is committed yet. Dead-code cleanup (`opp-detail.tsx`, `lib/opportunity-data.ts`, `lib/agents/opportunity-radar.ts`) should be done as a separate commit before or alongside the rubric work.
+
+---
+
+### Step 5.6 — SQLite online backup utility (complete, committed ef7eaa6)
 
 Build, TypeScript, lint (0 errors), `npm audit --omit=dev` (0 vulnerabilities), `git diff --check` all pass. Tested against a disposable local database; test files removed.
 
@@ -36,7 +98,7 @@ No automatic retention/deletion added yet.
 
 ---
 
-### Step 5.5 — Lifecycle transitions and validation checklist (complete, uncommitted)
+### Step 5.5 — Lifecycle transitions and validation checklist (complete, deployed ef7eaa6)
 
 Build, TypeScript, lint (0 errors), `npm audit --omit=dev` (0 vulnerabilities), `git diff --check` all pass.
 
@@ -91,7 +153,7 @@ Build, TypeScript, lint (0 errors), `npm audit --omit=dev` (0 vulnerabilities), 
 - Only one evidence row and one note row can be in edit mode at a time; opening a second edit cancels the first
 - `Add` button hidden while any row in that section is in edit mode (prevents conflicting form state)
 
-### Step 5.3 — Core UI connected to database (complete, committed pending)
+### Step 5.3 — Core UI connected to database (complete, deployed ef7eaa6)
 
 Build, TypeScript, lint (0 errors), `npm audit --omit=dev` (0 vulnerabilities) all pass.
 Dev DB migration applied and create/update/delete cycle verified; no test data remains.
@@ -225,17 +287,14 @@ Goal: replace the demo Opportunity Radar with a genuine persistence-backed verti
 
 ### Exact Next Action
 
-**Step 5.6 — Deploy Step 5.5 to production, then clean up dead code.**
+**Opportunity Radar V1 is production-complete.** The next product step is the AI-assisted evaluation rubric.
 
-1. Run server-side prerequisites (if not yet done): create `/home/jarvis/data/` and `/home/jarvis/backups/` directories.
-2. Deploy: `git pull && npm ci && npm run build -- --webpack && npx drizzle-kit migrate && supervisorctl restart jarvis`.
-3. Verify in production: create an opportunity, advance it through the lifecycle, add evidence and notes.
-4. Dead-code cleanup (post-deploy, separate commit):
-   - `components/opportunities/opp-detail.tsx` — this component targets the old `OpportunityRecord` type and is not rendered anywhere in the live path. The `STATUS_CONFIG` and `TRANSITIONS` it re-exports are now sourced from `lib/opportunity-lifecycle.ts`. Delete the file and remove its now-unnecessary re-exports.
+1. **Dead-code cleanup** (separate commit before AI work):
+   - `components/opportunities/opp-detail.tsx` — targets old `OpportunityRecord` type, not rendered anywhere in the live path; `STATUS_CONFIG` and `TRANSITIONS` are now sourced from `lib/opportunity-lifecycle.ts`. Delete.
    - `lib/opportunity-data.ts` — 7 hard-coded demo records, unreferenced. Delete.
    - `lib/agents/opportunity-radar.ts` — mock simulation, unreferenced. Delete.
    - Remove "Run Radar" button simulation in `opportunities-client.tsx` (or wire to a real agent).
-5. Step 5 completion: AI-assisted evaluation (Step 5 point 4) is the next feature milestone.
+2. **AI-assisted evaluation rubric** — define the 10-dimension scoring schema and weighting before selecting or integrating any AI provider.
 
 Production starts empty — do not seed demo data.
 
@@ -255,17 +314,14 @@ All previously unresolved design questions are now closed:
 | 8 | **Migration strategy** — explicit deploy step (`npx drizzle-kit migrate`) before restart; never automatic on startup | Approved |
 | 9 | **Backup strategy** — use `better-sqlite3` `.backup()` API or SQLite `.backup` command (WAL-consistent online backup); never plain `cp` on a WAL-mode file | Approved |
 
-## Operational Prerequisites (not yet executed)
+## Operational Prerequisites (completed 2026-08-23)
 
-These two server commands must be run before the first DB-backed application startup:
+Both directories created, owned, and permissioned during the production launch deploy:
 
-```bash
-# SSH as root — one-time setup:
-mkdir -p /home/jarvis/data && chown jarvis:users /home/jarvis/data && chmod 750 /home/jarvis/data
-mkdir -p /home/jarvis/backups && chown jarvis:users /home/jarvis/backups && chmod 750 /home/jarvis/backups
 ```
-
-`/home/jarvis/backups` and automated backups must be in place before meaningful real data is committed to the system.
+/home/jarvis/data/    — jarvis:users, mode 750 — contains jarvis.db (mode 640)
+/home/jarvis/backups/ — jarvis:users, mode 750 — daily backup files land here
+```
 
 ## Deploy Reference
 
