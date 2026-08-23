@@ -22,66 +22,19 @@ import type {
   CompetitiveAlternative,
   ValidationChecklist,
 } from "@/lib/types";
+import {
+  STATUS_CONFIG,
+  LIFECYCLE_STEPS,
+  LIFECYCLE_ORDER,
+} from "@/lib/opportunity-lifecycle";
 
-// ── Lifecycle steps ────────────────────────────────────────────────────────────
-
-const LIFECYCLE_STEPS: { key: OpportunityStatus; label: string }[] = [
-  { key: "new", label: "Discovered" },
-  { key: "investigating", label: "Investigating" },
-  { key: "validate-now", label: "Validate Now" },
-  { key: "validating", label: "Validating" },
-  { key: "build", label: "Build" },
-];
-
-const LIFECYCLE_ORDER: OpportunityStatus[] = [
-  "new",
-  "investigating",
-  "validate-now",
-  "validating",
-  "build",
-];
+export { STATUS_CONFIG };
 
 function getLifecycleIndex(status: OpportunityStatus): number {
   if (status === "rejected" || status === "archived" || status === "watch")
     return -1;
   return LIFECYCLE_ORDER.indexOf(status);
 }
-
-// ── Status config ──────────────────────────────────────────────────────────────
-
-export const STATUS_CONFIG: Record<
-  OpportunityStatus,
-  { label: string; color: string; bg: string }
-> = {
-  new: { label: "New", color: "text-blue-400", bg: "bg-blue-500/10" },
-  investigating: {
-    label: "Investigating",
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
-  },
-  "validate-now": {
-    label: "Validate Now",
-    color: "text-violet-400",
-    bg: "bg-violet-500/10",
-  },
-  validating: {
-    label: "Validating",
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-  },
-  build: { label: "Build", color: "text-emerald-300", bg: "bg-emerald-500/15" },
-  watch: {
-    label: "Watch",
-    color: "text-muted-foreground",
-    bg: "bg-secondary/60",
-  },
-  rejected: { label: "Rejected", color: "text-red-400", bg: "bg-red-500/10" },
-  archived: {
-    label: "Archived",
-    color: "text-muted-foreground",
-    bg: "bg-secondary/40",
-  },
-};
 
 // ── Signal type config ─────────────────────────────────────────────────────────
 
@@ -393,44 +346,9 @@ const ALT_TYPE_CONFIG: Record<
   },
 };
 
-// ── Lifecycle transitions ──────────────────────────────────────────────────────
+// ── Lifecycle transitions (imported from shared module) ───────────────────────
 
-interface Transition {
-  label: string;
-  targetStatus: OpportunityStatus;
-  variant: "primary" | "secondary" | "danger";
-  requiresNote?: boolean;
-  requiresConfirm?: boolean;
-}
-
-const TRANSITIONS: Partial<Record<OpportunityStatus, Transition[]>> = {
-  new: [
-    { label: "Start Investigating", targetStatus: "investigating", variant: "primary" },
-  ],
-  investigating: [
-    { label: "Mark: Validate Now", targetStatus: "validate-now", variant: "primary" },
-    { label: "Watch", targetStatus: "watch", variant: "secondary", requiresNote: true },
-    { label: "Reject", targetStatus: "rejected", variant: "danger", requiresNote: true },
-  ],
-  "validate-now": [
-    { label: "Begin Validating", targetStatus: "validating", variant: "primary" },
-    { label: "Watch", targetStatus: "watch", variant: "secondary", requiresNote: true },
-    { label: "Reject", targetStatus: "rejected", variant: "danger", requiresNote: true },
-  ],
-  validating: [
-    { label: "Move to Build", targetStatus: "build", variant: "primary", requiresConfirm: true },
-    { label: "Watch", targetStatus: "watch", variant: "secondary", requiresNote: true },
-    { label: "Reject", targetStatus: "rejected", variant: "danger", requiresNote: true },
-  ],
-  watch: [
-    { label: "Reinvestigate", targetStatus: "investigating", variant: "secondary" },
-  ],
-  rejected: [
-    { label: "Reconsider", targetStatus: "investigating", variant: "secondary" },
-  ],
-  build: [],
-  archived: [],
-};
+import { TRANSITIONS } from "@/lib/opportunity-lifecycle";
 
 // ── Main detail panel ──────────────────────────────────────────────────────────
 

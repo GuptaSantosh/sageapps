@@ -15,9 +15,10 @@ import {
   X,
   Pencil,
 } from "lucide-react";
-import { STATUS_CONFIG } from "@/components/opportunities/opp-detail";
+import { STATUS_CONFIG } from "@/lib/opportunity-lifecycle";
 import { OpportunityForm } from "@/components/opportunities/opportunity-form";
 import { OppDetailPanel } from "@/components/opportunities/opp-detail-panel";
+import { LifecyclePanel } from "@/components/opportunities/lifecycle-panel";
 import { cn } from "@/lib/utils";
 import type { OpportunityRow } from "@/lib/db/schema";
 import type { OpportunityStatus } from "@/lib/types";
@@ -509,6 +510,13 @@ export function OpportunitiesClient({
               />
             ) : (
               <div className="space-y-4">
+                {/* Lifecycle — progress bar, transitions, checklist (when validating).
+                    key remounts on both opportunity change and status change. */}
+                <LifecyclePanel
+                  key={`${selectedOpp.id}-${selectedOpp.status}`}
+                  opp={selectedOpp}
+                />
+
                 {/* Problem statement */}
                 <div className="space-y-1">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-widest">

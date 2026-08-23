@@ -23,20 +23,9 @@ import {
   type ChecklistRow,
 } from "./schema";
 import type { OpportunityStatus } from "@/lib/types";
+import { ALLOWED_TRANSITIONS } from "@/lib/opportunity-lifecycle";
 
-// ── Allowed lifecycle transitions ─────────────────────────────────────────────
-// Mirrors TRANSITIONS in components/opportunities/opp-detail.tsx.
-
-export const ALLOWED_TRANSITIONS: Record<OpportunityStatus, OpportunityStatus[]> = {
-  new:            ["investigating"],
-  investigating:  ["validate-now", "watch", "rejected"],
-  "validate-now": ["validating", "watch", "rejected"],
-  validating:     ["build", "watch", "rejected"],
-  watch:          ["investigating"],
-  rejected:       ["investigating"],
-  build:          [],
-  archived:       [],
-};
+export { ALLOWED_TRANSITIONS };
 
 // ── Timestamp helper ──────────────────────────────────────────────────────────
 // Matches SQLite datetime('now') format: YYYY-MM-DD HH:MM:SS (UTC).

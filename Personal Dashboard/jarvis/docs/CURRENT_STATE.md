@@ -1,11 +1,40 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-08-22 (Step 5.4 complete — evidence/notes add/edit/remove, all checks pass)
+> Last updated: 2026-08-22 (Step 5.5 complete — lifecycle transitions and validation checklist, all checks pass)
 
 ## What Is Complete
 
-### Step 5.4 — Evidence and research notes UI (complete, committed pending)
+### Step 5.5 — Lifecycle transitions and validation checklist (complete, uncommitted)
+
+Build, TypeScript, lint (0 errors), `npm audit --omit=dev` (0 vulnerabilities), `git diff --check` all pass.
+
+| File | Change |
+|---|---|
+| `lib/opportunity-lifecycle.ts` | New shared module (no `server-only`, importable from both server and client): `LIFECYCLE_STEPS`, `LIFECYCLE_ORDER`, `STATUS_CONFIG`, `TransitionConfig` interface, `TRANSITIONS` (single source of truth for all lifecycle moves with label/variant/requiresNote/requiresConfirm), `ALLOWED_TRANSITIONS` (derived from TRANSITIONS — never out of sync) |
+| `lib/db/queries.ts` | Removed inline `ALLOWED_TRANSITIONS` definition; now imports and re-exports from `lib/opportunity-lifecycle.ts` |
+| `components/opportunities/opp-detail.tsx` | Removed duplicate `STATUS_CONFIG`, `LIFECYCLE_STEPS`, `LIFECYCLE_ORDER`, `TRANSITIONS` definitions; now imports from shared module. `STATUS_CONFIG` is still re-exported for backward compatibility. |
+| `components/opportunities/lifecycle-panel.tsx` | New client component (`key={opp.id}-${opp.status}` on parent, so it remounts on status change): lifecycle progress bar; transition buttons with variant styling; Watch/Reject note textarea (optional reason saved as status note); Build confirmation step; `useTransition` for pending state; checklist loaded via `getOpportunityAction` on mount when `status === "validating"`; optimistic checklist updates with revert on error; compact progress bar (X/6 done) |
+| `components/opportunities/opportunities-client.tsx` | Updated `STATUS_CONFIG` import to `@/lib/opportunity-lifecycle`; added `LifecyclePanel` import; renders `<LifecyclePanel key={opp.id+status} opp={selectedOpp} />` at the top of the read view in the detail panel |
+
+**User-visible behaviour:**
+- Detail panel shows a 5-step lifecycle progress bar (Discovered → Investigating → Validate Now → Validating → Build); current step highlighted in emerald; completed steps filled
+- Off-path statuses (Watch, Rejected, Archived) show a coloured status banner instead of the bar
+- Transition buttons appear below the bar; only allowed transitions for the current status are shown
+- Watch/Reject: clicking opens an optional textarea; reason is saved as a `status` note in the DB
+- Build: clicking opens a confirmation step before committing
+- All transitions persist immediately; `router.refresh()` updates the list pill counts and the detail panel status
+- After transitioning to `validating`, the panel remounts and automatically shows the Validation Checklist
+- Checklist: 3 boolean toggles (CheckCircle2 / Circle), 3 counters with −/+ buttons and n/max display
+- Each checklist change persists immediately with optimistic update and revert-on-error
+- Progress bar (X/6) above the checklist shows overall completion
+- Create/edit/evidence/notes all unchanged
+
+**Architecture note:**
+- `TRANSITIONS` in `lib/opportunity-lifecycle.ts` is the single source of truth. `ALLOWED_TRANSITIONS` (used by the server's transaction validator) is derived from it — changing one automatically updates the other. No lifecycle rules are duplicated.
+- `LifecyclePanel` uses `key={opp.id}-${opp.status}` (parent side) so React remounts it on every status change — gives a clean initial `checklistLoading` state without synchronous setState in the effect body.
+
+### Step 5.4 — Evidence and research notes UI (complete, committed c2548ee)
 
 Build, TypeScript, lint (0 errors), `npm audit --omit=dev` (0 vulnerabilities), `git diff --check` all pass.
 
@@ -165,15 +194,17 @@ Goal: replace the demo Opportunity Radar with a genuine persistence-backed verti
 
 ### Exact Next Action
 
-**Step 5.5 — Lifecycle status transitions in the UI.**
+**Step 5.6 — Deploy Step 5.5 to production, then clean up dead code.**
 
-Wire lifecycle status controls to `updateOpportunityStatusAction`:
-1. Add transition buttons to the detail panel header (or a dedicated section below the core fields). Show only the transitions allowed from the current status (`ALLOWED_TRANSITIONS` exported from `lib/db/queries.ts`).
-2. Optional: show a note textarea that becomes a `status` note when the transition is confirmed.
-3. Entering `validating` automatically provisions a blank checklist (handled server-side in `updateOpportunityStatus`).
-4. Connect validation checklist fields to `updateChecklistAction` — show only when `status === "validating"` and a checklist row exists.
-5. Consider retiring or repurposing the legacy `OppDetail` component (`components/opportunities/opp-detail.tsx`) — it targets the old `OpportunityRecord` type. Only `STATUS_CONFIG` is currently imported from it; extract that export and delete the rest.
-6. Once all references to `lib/opportunity-data.ts` and `lib/agents/opportunity-radar.ts` are gone, delete them.
+1. Run server-side prerequisites (if not yet done): create `/home/jarvis/data/` and `/home/jarvis/backups/` directories.
+2. Deploy: `git pull && npm ci && npm run build -- --webpack && npx drizzle-kit migrate && supervisorctl restart jarvis`.
+3. Verify in production: create an opportunity, advance it through the lifecycle, add evidence and notes.
+4. Dead-code cleanup (post-deploy, separate commit):
+   - `components/opportunities/opp-detail.tsx` — this component targets the old `OpportunityRecord` type and is not rendered anywhere in the live path. The `STATUS_CONFIG` and `TRANSITIONS` it re-exports are now sourced from `lib/opportunity-lifecycle.ts`. Delete the file and remove its now-unnecessary re-exports.
+   - `lib/opportunity-data.ts` — 7 hard-coded demo records, unreferenced. Delete.
+   - `lib/agents/opportunity-radar.ts` — mock simulation, unreferenced. Delete.
+   - Remove "Run Radar" button simulation in `opportunities-client.tsx` (or wire to a real agent).
+5. Step 5 completion: AI-assisted evaluation (Step 5 point 4) is the next feature milestone.
 
 Production starts empty — do not seed demo data.
 
