@@ -1235,12 +1235,14 @@ function submitGate() {
       return;
     }
     sessionStorage.setItem('ais_email_captured', '1');
+    sessionStorage.setItem('sage_user_email', email);
     document.getElementById('ais-gate').style.display = 'none';
     document.getElementById('scanner-form').style.display = 'block';
   })
   .catch(() => {
     // On network error, let them through anyway
     sessionStorage.setItem('ais_email_captured', '1');
+    sessionStorage.setItem('sage_user_email', email);
     document.getElementById('ais-gate').style.display = 'none';
     document.getElementById('scanner-form').style.display = 'block';
   });
@@ -1276,6 +1278,7 @@ function runAisScan() {
   formData.append('pdf_file', file);
   formData.append('pan', pan);
   formData.append('dob', dobFormatted);
+  formData.append('user_email', sessionStorage.getItem('sage_user_email') || '');
 
   fetch('https://api.sageapps.in/taxsage-api/scan', {
     method: 'POST',
@@ -1410,11 +1413,13 @@ function submitCGGate() {
       return;
     }
     sessionStorage.setItem('ais_email_captured', '1');
+    sessionStorage.setItem('sage_user_email', email);
     document.getElementById('cg-gate').style.display = 'none';
     document.getElementById('cg-form-inner').style.display = 'block';
   })
   .catch(() => {
     sessionStorage.setItem('ais_email_captured', '1');
+    sessionStorage.setItem('sage_user_email', email);
     document.getElementById('cg-gate').style.display = 'none';
     document.getElementById('cg-form-inner').style.display = 'block';
   });
@@ -1503,6 +1508,7 @@ function runCGScan() {
     const dobParts = dob.split('/');
     formData.append('dob', dobParts[0] + dobParts[1] + dobParts[2]);
   }
+  formData.append('user_email', sessionStorage.getItem('sage_user_email') || '');
 
   fetch('https://api.sageapps.in/taxsage-api/capital-gains-summary', {
     method: 'POST',

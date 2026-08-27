@@ -245,12 +245,14 @@ function submitF16Gate() {
       return;
     }
     sessionStorage.setItem('ais_email_captured', '1');
+    sessionStorage.setItem('sage_user_email', email);
     document.getElementById('f16-gate').style.display = 'none';
     document.getElementById('f16-form-inner').style.display = 'block';
   })
   .catch(() => {
     // On network error, let them through anyway
     sessionStorage.setItem('ais_email_captured', '1');
+    sessionStorage.setItem('sage_user_email', email);
     document.getElementById('f16-gate').style.display = 'none';
     document.getElementById('f16-form-inner').style.display = 'block';
   });
@@ -317,6 +319,7 @@ function runForm16() {
   formData.append('pdf_file', file);
   if (pan) formData.append('pan', pan);
   if (dob) formData.append('dob', dobFormatted);
+  formData.append('user_email', sessionStorage.getItem('sage_user_email') || '');
 
   btn.disabled = true;
   btn.style.opacity = '0.5';
