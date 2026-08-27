@@ -40,18 +40,24 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         """)
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("ALTER TABLE scan_logs ADD COLUMN email TEXT")
+    except sqlite3.OperationalError:
+        pass  # column already exists
 
 
 init_db()
 
 
-def log_scan(tool: str, status: str, error_type: str = None, file_count: int = 0):
+def log_scan(tool: str, status: str, error_type: str = None,
+             file_count: int = 0, email: str = None):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             conn.execute(
-                "INSERT INTO scan_logs (tool, status, error_type, file_count, created_at) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (tool, status, error_type, file_count,
+                "INSERT INTO scan_logs (tool, status, error_type, file_count, email, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (tool, status, error_type, file_count, email,
                  datetime.now(timezone.utc).isoformat())
             )
     except Exception:
@@ -96,29 +102,30 @@ def capital_gains_summary():
     password = pan.lower() + dob if pan and dob else ""
     files = [(f.filename, f.read()) for f in files_storage]
     file_count = len(files)
+    email = request.form.get("user_email", "").strip() or None
 
     try:
         result = capital_gains.process(files, password)
-        log_scan("capital-gains", "success", file_count=file_count)
+        log_scan("capital-gains", "success", file_count=file_count, email=email)
         return jsonify(result)
     except ValueError as e:
         msg = str(e)
         if msg == "wrong_password":
-            log_scan("capital-gains", "error", "wrong_password", file_count)
+            log_scan("capital-gains", "error", "wrong_password", file_count, email)
             return jsonify({"error": "wrong_password",
                             "message": "Couldn't open this file — check PAN and DOB."}), 200
         if msg.startswith("claude_parse_failed"):
-            log_scan("capital-gains", "error", "parse_failed", file_count)
+            log_scan("capital-gains", "error", "parse_failed", file_count, email)
             return jsonify({"error": "parse_failed",
                             "message": "Could not extract capital gains data. Please try again."}), 200
         if msg.startswith("unsupported_file:"):
-            log_scan("capital-gains", "error", "unsupported_file", file_count)
+            log_scan("capital-gains", "error", "unsupported_file", file_count, email)
             return jsonify({"error": "unsupported_file",
                             "message": f"{msg.split(':',1)[1]} — only .xlsx and .pdf accepted."}), 200
-        log_scan("capital-gains", "error", "unknown", file_count)
+        log_scan("capital-gains", "error", "unknown", file_count, email)
         return jsonify({"error": "error", "message": msg}), 200
     except anthropic.APIError as e:
-        log_scan("capital-gains", "error", "api_error", file_count)
+        log_scan("capital-gains", "error", "api_error", file_count, email)
         return jsonify({"error": "api_error", "detail": str(e)}), 200
 
 
@@ -134,25 +141,26 @@ def form16_summary():
 
     password = pan.lower() + dob if pan and dob else ""
     pdf_bytes = pdf_file.read()
+    email = request.form.get("user_email", "").strip() or None
 
     try:
         result = form16.parse(pdf_bytes, password)
-        log_scan("form16", "success", file_count=1)
+        log_scan("form16", "success", file_count=1, email=email)
         return jsonify(result)
     except ValueError as e:
         msg = str(e)
         if msg == "wrong_password":
-            log_scan("form16", "error", "wrong_password", 1)
+            log_scan("form16", "error", "wrong_password", 1, email)
             return jsonify({"error": "wrong_password",
                             "message": "Could not open PDF — check PAN and date of birth."}), 200
         if msg.startswith("claude_parse_failed"):
-            log_scan("form16", "error", "parse_failed", 1)
+            log_scan("form16", "error", "parse_failed", 1, email)
             return jsonify({"error": "parse_failed",
                             "message": "Could not extract Form 16 data. Please try again."}), 200
-        log_scan("form16", "error", "unknown", 1)
+        log_scan("form16", "error", "unknown", 1, email)
         return jsonify({"error": "error", "message": msg}), 200
     except anthropic.APIError as e:
-        log_scan("form16", "error", "api_error", 1)
+        log_scan("form16", "error", "api_error", 1, email)
         return jsonify({"error": "api_error", "detail": str(e)}), 200
 
 
@@ -167,25 +175,26 @@ def scan():
 
     password = pan.lower() + dob
     pdf_bytes = pdf_file.read()
+    email = request.form.get("user_email", "").strip() or None
 
     try:
         result = ais_scanner.scan(pdf_bytes, password)
-        log_scan("ais-scanner", "success", file_count=1)
+        log_scan("ais-scanner", "success", file_count=1, email=email)
         return jsonify(result)
     except ValueError as e:
         msg = str(e)
         if msg == "wrong_password":
-            log_scan("ais-scanner", "error", "wrong_password", 1)
+            log_scan("ais-scanner", "error", "wrong_password", 1, email)
             return jsonify({"error": "wrong_password",
                             "message": "Couldn't open this file — check PAN and DOB."}), 200
         if msg.startswith("claude_parse_failed"):
-            log_scan("ais-scanner", "error", "parse_failed", 1)
+            log_scan("ais-scanner", "error", "parse_failed", 1, email)
             return jsonify({"error": "parse_failed",
                             "message": "Could not extract AIS data. Please try again."}), 200
-        log_scan("ais-scanner", "error", "unknown", 1)
+        log_scan("ais-scanner", "error", "unknown", 1, email)
         return jsonify({"error": "error", "message": msg}), 200
     except anthropic.APIError as e:
-        log_scan("ais-scanner", "error", "api_error", 1)
+        log_scan("ais-scanner", "error", "api_error", 1, email)
         return jsonify({"error": "api_error", "detail": str(e)}), 200
 
 
@@ -201,7 +210,7 @@ def admin_leads():
             "SELECT email, feature, created_at FROM leads ORDER BY id DESC"
         ).fetchall()
         rows_scans = conn.execute(
-            "SELECT tool, status, error_type, file_count, created_at "
+            "SELECT tool, status, error_type, file_count, email, created_at "
             "FROM scan_logs ORDER BY id DESC LIMIT 100"
         ).fetchall()
 
@@ -217,7 +226,7 @@ def admin_leads():
     rows_scans_html = "\n".join(
         f'<tr style="color:{"green" if r[1] == "success" else "red"}">'
         f"<td>{r[0]}</td><td>{r[1]}</td><td>{r[2] or ''}</td>"
-        f"<td>{r[3]}</td><td>{r[4]}</td></tr>"
+        f"<td>{r[3]}</td><td>{r[4] or ''}</td><td>{r[5]}</td></tr>"
         for r in rows_scans
     )
 
@@ -232,7 +241,7 @@ th{{background:#f4f4f4;}}</style></head><body>
 {rows_html}
 </table>
 <h2>Scan Logs (last 100) — {success_count} success / {error_count} errors</h2>
-<table><tr><th>Tool</th><th>Status</th><th>Error Type</th><th>Files</th><th>Timestamp (UTC)</th></tr>
+<table><tr><th>Tool</th><th>Status</th><th>Error Type</th><th>Files</th><th>Email</th><th>Timestamp (UTC)</th></tr>
 {rows_scans_html}
 </table></body></html>"""
     return make_response(html, 200)
