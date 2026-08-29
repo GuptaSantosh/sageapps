@@ -7,7 +7,6 @@ import { runAgent } from "@/lib/agents";
 const QUICK_AGENTS = [
   { id: "mail-sage", label: "MailSage Brief" },
   { id: "fin-sage", label: "FinSage AIS" },
-  { id: "opportunity-radar", label: "Opp. Radar" },
   { id: "content-agent", label: "Content Draft" },
 ];
 

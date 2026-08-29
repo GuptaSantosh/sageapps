@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Target,
   Plus,
-  Play,
   Settings2,
   ChevronDown,
   ChevronUp,
@@ -146,10 +145,6 @@ export function OpportunitiesClient({
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState(false);
 
-  // Simulation state for "Run Radar" button — not yet wired to a real agent
-  const [simulating, setSimulating] = useState(false);
-  const [simDone, setSimDone] = useState(false);
-
   const selectedOpp = selectedId
     ? (initialOpps.find((o) => o.id === selectedId) ?? null)
     : null;
@@ -185,16 +180,6 @@ export function OpportunitiesClient({
     setShowCreate(false);
     setEditing(false);
     router.refresh();
-  }
-
-  function handleRunRadar() {
-    if (simulating || simDone) return;
-    setSimulating(true);
-    setTimeout(() => {
-      setSimulating(false);
-      setSimDone(true);
-      setTimeout(() => setSimDone(false), 3000);
-    }, 2400);
   }
 
   return (
@@ -237,19 +222,6 @@ export function OpportunitiesClient({
           >
             <Settings2 className="w-3.5 h-3.5" />
             Configure Radar
-          </button>
-          <button
-            onClick={handleRunRadar}
-            disabled={simulating}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md font-medium transition-all",
-              simDone
-                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-                : "bg-secondary/50 hover:bg-secondary border border-border text-muted-foreground disabled:opacity-60"
-            )}
-          >
-            <Play className={cn("w-3.5 h-3.5", simulating && "animate-pulse")} />
-            {simulating ? "Scanning…" : simDone ? "Scan complete" : "Run Radar"}
           </button>
         </div>
       </div>

@@ -10,14 +10,12 @@ import type { AgentResult } from '../types';
 import { runMailSage } from './mail-sage';
 import { runFinSage } from './fin-sage';
 import { runTaxSageAnalyst } from './tax-sage';
-import { runOpportunityRadar } from './opportunity-radar';
 import { runContentAgent } from './content-agent';
 
 const AGENT_RUNNERS: Record<string, (params: Record<string, string>) => Promise<AgentResult>> = {
   'mail-sage': runMailSage,
   'fin-sage': runFinSage,
   'tax-sage-analyst': runTaxSageAnalyst,
-  'opportunity-radar': runOpportunityRadar,
   'content-agent': runContentAgent,
 };
 

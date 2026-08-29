@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AGENTS } from "@/lib/mock-data";
-import { OPPORTUNITIES } from "@/lib/opportunity-data";
 
 const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -35,8 +34,6 @@ export function Sidebar() {
   ).reduce((sum, a) => sum + (a.pendingApprovals?.length ?? 0), 0);
 
   const errorAgents = AGENTS.filter((a) => a.status === "error").length;
-  const validateNowCount = OPPORTUNITIES.filter((o) => o.status === "validate-now").length;
-
   return (
     <aside className="fixed left-0 top-0 h-screen w-[220px] bg-sidebar border-r border-sidebar-border flex flex-col z-40">
       {/* Logo */}
@@ -58,8 +55,6 @@ export function Sidebar() {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           const showApprovalBadge = href === "/agents" && pendingApprovals > 0;
           const showErrorBadge = href === "/agents" && errorAgents > 0 && !showApprovalBadge;
-          const showRadarBadge = href === "/opportunities" && validateNowCount > 0;
-
           return (
             <Link
               key={href}
@@ -80,11 +75,6 @@ export function Sidebar() {
               )}
               {showErrorBadge && (
                 <AlertCircle className="w-3.5 h-3.5 text-red-400" />
-              )}
-              {showRadarBadge && (
-                <span className="w-4 h-4 rounded-full bg-violet-500/20 text-violet-400 text-[10px] flex items-center justify-center font-mono font-semibold">
-                  {validateNowCount}
-                </span>
               )}
             </Link>
           );
