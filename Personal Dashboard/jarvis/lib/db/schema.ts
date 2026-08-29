@@ -51,7 +51,7 @@ export const opportunities = sqliteTable(
     // ── AI-era fields — all nullable ────────────────────────────────────────
     // These are populated by AI evaluation (Step 5.4+); V1 creates without them.
 
-    // OpportunityRecommendation: 'Validate Now' | 'Investigate' | 'Watch' | 'Ignore'
+    // OpportunityRecommendation: 'Validate Now' | 'Investigate' | 'Watch' | 'Reject'
     recommendation:       text("recommendation"),
     recommendationReason: text("recommendation_reason"),
 
@@ -71,6 +71,18 @@ export const opportunities = sqliteTable(
 
     // ValidationPlan stored as JSON
     validationPlan: text("validation_plan"),
+
+    // ── AI evaluation — all nullable ────────────────────────────────────────
+    // Populated by evaluateOpportunityAction (Step 6.2+).
+    // evalScore is a separate queryable integer so list views can sort/filter
+    // without parsing the scorecard JSON blob.
+    // scorecard holds the full OpportunityEvaluation JSON (see lib/types.ts).
+
+    // Total weighted score 0–100 (rawScore/10 × weight, summed over 9 dimensions)
+    evalScore: integer("eval_score"),
+
+    // ISO 8601 UTC timestamp of the last evaluation run
+    evaluatedAt: text("evaluated_at"),
 
     // ── Timestamps ──────────────────────────────────────────────────────────
     createdAt: text("created_at")

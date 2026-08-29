@@ -301,3 +301,42 @@ export function updateNote(noteId: string, fields: UpdateNoteInput): void {
     .where(eq(opportunityNotes.id, noteId))
     .run();
 }
+
+// ── AI evaluation ─────────────────────────────────────────────────────────────
+
+/**
+ * Fields written by evaluateOpportunityAction (Step 6.2).
+ *
+ * - evalScore:            total weighted score 0–100 (queryable integer)
+ * - evaluatedAt:          ISO 8601 UTC timestamp
+ * - recommendation:       suggested decision string
+ * - recommendationReason: 1–2 sentence summary
+ * - scorecard:            full OpportunityEvaluation JSON blob
+ */
+export interface UpdateEvaluationInput {
+  evalScore:            number;
+  evaluatedAt:          string;
+  recommendation:       string;
+  recommendationReason: string;
+  scorecard:            string; // JSON.stringify(OpportunityEvaluation)
+}
+
+/**
+ * Persist an AI evaluation result to the opportunities table.
+ * All five fields are always written together; partial updates are not supported.
+ * Re-evaluation simply overwrites the previous values (no history in V1).
+ */
+export function updateEvaluation(id: string, input: UpdateEvaluationInput): void {
+  getDb()
+    .update(opportunities)
+    .set({
+      evalScore:            input.evalScore,
+      evaluatedAt:          input.evaluatedAt,
+      recommendation:       input.recommendation,
+      recommendationReason: input.recommendationReason,
+      scorecard:            input.scorecard,
+      updatedAt:            nowIso(),
+    })
+    .where(eq(opportunities.id, id))
+    .run();
+}

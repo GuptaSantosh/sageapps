@@ -8,6 +8,13 @@
       "when": 1787238467292,
       "tag": "0000_stale_micromax",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787984345476,
+      "tag": "0001_keen_stranger",
+      "breakpoints": true
     }
   ]
 }
