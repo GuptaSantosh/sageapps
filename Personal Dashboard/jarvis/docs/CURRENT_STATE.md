@@ -1,7 +1,7 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-08-23 (Opportunity Radar V1 production launch — commit ef7eaa6 deployed, accepted, complete)
+> Last updated: 2026-08-28 (Step 6.0 — rubric doc committed; dead-code cleanup pending)
 
 ## What Is Complete
 
@@ -287,14 +287,31 @@ Goal: replace the demo Opportunity Radar with a genuine persistence-backed verti
 
 ### Exact Next Action
 
-**Opportunity Radar V1 is production-complete.** The next product step is the AI-assisted evaluation rubric.
+**Step 6.0 — Documentation + dead-code cleanup** (in progress — rubric doc committed, dead-code removal pending).
 
-1. **Dead-code cleanup** (separate commit before AI work):
-   - `components/opportunities/opp-detail.tsx` — targets old `OpportunityRecord` type, not rendered anywhere in the live path; `STATUS_CONFIG` and `TRANSITIONS` are now sourced from `lib/opportunity-lifecycle.ts`. Delete.
-   - `lib/opportunity-data.ts` — 7 hard-coded demo records, unreferenced. Delete.
-   - `lib/agents/opportunity-radar.ts` — mock simulation, unreferenced. Delete.
-   - Remove "Run Radar" button simulation in `opportunities-client.tsx` (or wire to a real agent).
-2. **AI-assisted evaluation rubric** — define the 10-dimension scoring schema and weighting before selecting or integrating any AI provider.
+See `docs/OPPORTUNITY_EVALUATION_RUBRIC.md` for the full approved rubric design.
+See `docs/ARCHITECTURE.md` (Step 6 section) for the implementation architecture.
+
+#### Step 6.0 dead-code removal (next commit)
+
+These files are confirmed unreferenced in the live path and must be deleted:
+
+| File | Reason |
+|---|---|
+| `components/opportunities/opp-detail.tsx` | Targets old `OpportunityRecord` type; not rendered anywhere in the live path. `STATUS_CONFIG` + `TRANSITIONS` now live in `lib/opportunity-lifecycle.ts`. |
+| `lib/opportunity-data.ts` | 7 hard-coded demo records, unreferenced. |
+| `lib/agents/opportunity-radar.ts` | Mock simulation, unreferenced. |
+
+Also: remove or rewire the "Run Radar" button in `opportunities-client.tsx` (currently calls the dead mock agent).
+
+#### Step 6 sequence (do not start until 6.0 is committed and deployed)
+
+| Step | Scope | Status |
+|---|---|---|
+| **6.0** | Documentation + dead-code cleanup | In progress |
+| **6.1** | Schema (2 new columns + migration), types, query helper, stub server action | Pending |
+| **6.2** | Real AI evaluator (`lib/ai/rubric.ts`, `lib/ai/evaluate-opportunity.ts`, `@anthropic-ai/sdk`) | Pending |
+| **6.3** | Scorecard UI (`scorecard-panel.tsx`, wire into `opportunities-client.tsx`) | Pending |
 
 Production starts empty — do not seed demo data.
 

@@ -73,3 +73,7 @@ Never rely on `proxy.ts` alone. Authorization is enforced at three independent l
 ## Architecture Reference
 
 See `docs/ARCHITECTURE.md` for verified current file layout, data flow, lifecycle map, and deployment constraints.
+
+## Evaluation Rubric Reference
+
+See `docs/OPPORTUNITY_EVALUATION_RUBRIC.md` for all AI-evaluation design decisions: dimensions, weights, scoring mechanics, output schema, decision thresholds, and implementation constraints. Do not re-derive or re-litigate these decisions — consult this document first.

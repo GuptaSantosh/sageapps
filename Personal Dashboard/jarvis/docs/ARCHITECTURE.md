@@ -236,3 +236,72 @@ supervisorctl restart jarvis
 ### Seed Behaviour
 
 Production starts **empty**. The seven fictional opportunities in `lib/opportunity-data.ts` must not be seeded into the production database. That file may remain as a non-production fixture/reference until safely removed.
+
+## Step 6: AI-Assisted Opportunity Evaluation
+
+> **Canonical reference:** `docs/OPPORTUNITY_EVALUATION_RUBRIC.md`
+> All dimension definitions, weights, scoring mechanics, output schema, decision
+> thresholds, and V0.1 design decisions are recorded there. Do not duplicate or
+> re-derive them here.
+
+### Summary
+
+A manual "Evaluate with AI" button in the opportunity detail view sends the
+opportunity's problem statement, evidence, and notes to Claude. Claude scores nine
+weighted dimensions (total 100 points) and returns a structured JSON evaluation.
+The result is persisted to the `opportunities` table and displayed in a new
+`ScorecardPanel` component.
+
+AI evaluation is **advisory only**. It never automatically changes lifecycle status.
+"Build" is never AI-awarded.
+
+### Schema Additions (Step 6.1)
+
+Two nullable columns added to `opportunities` via a new migration:
+
+| Column | Type | Purpose |
+|---|---|---|
+| `eval_score` | INTEGER nullable | Weighted total (0–100) — queryable for sort/filter |
+| `evaluated_at` | TEXT nullable | ISO 8601 UTC timestamp of last evaluation |
+
+All other evaluation data lives in the existing nullable `scorecard` (JSON),
+`recommendation`, and `recommendation_reason` columns.
+
+### New Files (Step 6)
+
+| File | Purpose |
+|---|---|
+| `lib/ai/rubric.ts` | Nine dimension definitions + weights — single source of truth |
+| `lib/ai/evaluate-opportunity.ts` | Prompt builder → Claude API call → Zod parse → `OpportunityEvaluation` |
+| `components/opportunities/scorecard-panel.tsx` | Client component: "Evaluate" button, spinner, full scorecard display |
+
+### Data Flow
+
+```
+Browser: "Evaluate with AI" button
+  |
+  v
+evaluateOpportunityAction(id)   [Server Action]
+  requireAuth()
+  load opportunity + evidence + notes
+  |
+  v
+lib/ai/evaluate-opportunity.ts
+  build prompt (uses lib/ai/rubric.ts for dimension definitions)
+  call claude-sonnet-4-6 (JSON output, no streaming)
+  validate response with Zod
+  |
+  v
+updateEvaluation(id, result)    [queries.ts]
+  writes eval_score, evaluated_at, recommendation, recommendation_reason, scorecard
+  revalidatePath("/opportunities")
+```
+
+### Implementation Sequence
+
+| Step | Scope |
+|---|---|
+| 6.0 | Documentation + dead-code cleanup |
+| 6.1 | Schema migration, types, query helper, stub action |
+| 6.2 | Real AI evaluator + wired action |
+| 6.3 | Scorecard UI component |
