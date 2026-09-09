@@ -1,7 +1,7 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-08-28 (Step 6.0 — rubric doc committed; dead-code cleanup pending)
+> Last updated: 2026-09-09 (Step 6.2 — real AI evaluator complete, live test passed, ready to commit)
 
 ## What Is Complete
 
@@ -304,16 +304,82 @@ These files are confirmed unreferenced in the live path and must be deleted:
 
 Also: remove or rewire the "Run Radar" button in `opportunities-client.tsx` (currently calls the dead mock agent).
 
-#### Step 6 sequence (do not start until 6.0 is committed and deployed)
+#### Step 6 sequence
 
 | Step | Scope | Status |
 |---|---|---|
-| **6.0** | Documentation + dead-code cleanup | In progress |
-| **6.1** | Schema (2 new columns + migration), types, query helper, stub server action | Pending |
-| **6.2** | Real AI evaluator (`lib/ai/rubric.ts`, `lib/ai/evaluate-opportunity.ts`, `@anthropic-ai/sdk`) | Pending |
+| **6.0** | Documentation + dead-code cleanup | Complete — commit `2c888ec` |
+| **6.1** | Schema (2 new columns + migration), types, query helper | Complete — commit `aa7855b` |
+| **6.2** | Real AI evaluator (`lib/ai/rubric.ts`, `lib/ai/evaluate-opportunity.ts`, `evaluateOpportunityAction`) | **Complete — ready to commit** |
 | **6.3** | Scorecard UI (`scorecard-panel.tsx`, wire into `opportunities-client.tsx`) | Pending |
 
 Production starts empty — do not seed demo data.
+
+---
+
+### Step 6.2 — Real AI Evaluator (complete, not yet committed)
+
+#### Implementation
+
+| File | Change |
+|---|---|
+| `lib/ai/rubric.ts` | New — single source of truth for 9 rubric dimensions, weights (15/15/15/15/10/10/10/5/5=100), `scoreToDecision()` thresholds (80/65/45), `computeWeightedScore()`, `computeTotalScore()`. "Build" never returned. |
+| `lib/ai/evaluate-opportunity.ts` | New — `evaluateOpportunity(input)`: builds structured markdown prompt from opportunity + evidence + notes, calls `claude-sonnet-4-6`, strips markdown fences, JSON-parses, Zod-validates 9 dimensions + 5 narrative fields, computes weighted scores application-side (never trusts Claude's arithmetic), enforces URL allowlist (output restricted to supplied evidence URLs), returns `OpportunityEvaluation`. `import "server-only"` at top. |
+| `app/(private)/opportunities/actions.ts` | Added `evaluateOpportunityAction(id)`: `requireAuth()`, loads opp+evidence+notes from DB, builds `EvaluationInput`, calls `evaluateOpportunity()`, persists `eval_score` / `evaluated_at` / `recommendation` / `recommendation_reason` / `scorecard` JSON blob, `revalidatePath("/opportunities")`. Does NOT change lifecycle status or checklist. |
+| `.env.example` | Added `ANTHROPIC_API_KEY` section |
+| `package.json` | Added `@anthropic-ai/sdk@^0.122.0` |
+
+#### Live Test Result (2026-09-09)
+
+Evaluated: "Indian freelancer tax stack" (sparse dev-DB seed record — 1 evidence URL with no real content, 1 unrelated research note).
+
+| Dimension | Raw | Weighted |
+|---|---|---|
+| Problem Severity & Frequency | 5/10 | 7.5 |
+| Evidence Strength | 1/10 | 1.5 |
+| Willingness to Pay | 2/10 | 3.0 |
+| Founder–Market Fit | 6/10 | 9.0 |
+| Customer Access / Distrib | 5/10 | 5.0 |
+| Solopreneur Feasibility | 6/10 | 6.0 |
+| Speed to Validation | 7/10 | 7.0 |
+| Market Expansion Potential | 6/10 | 3.0 |
+| Differentiation | 4/10 | 2.0 |
+| **Total** | | **44.0 → Reject** |
+
+- Confidence: low
+- Model: `claude-sonnet-4-6`
+- Evidence Strength correctly scored 1 (rubric: "score 1 if evidence empty") — rubric constraints working
+- Strongest objection: ClearTax/Quicko/CA platforms already serve this need; freelancers pay CA ₹1–2K/year
+- Cheapest experiment: poll in r/IndiaFinance + landing page, 1 week / ~₹0–2,000
+- Evaluation quality: intellectually sound; missing-evidence list specific and actionable
+
+#### Invariant Checks (all PASS)
+
+| Check | Result |
+|---|---|
+| `decision !== "Build"` | PASS |
+| Lifecycle status unchanged | PASS |
+| Checklist unchanged | PASS |
+| `eval_score` persisted correctly | PASS |
+| `recommendation` persisted correctly | PASS |
+| `evaluated_at` persisted correctly | PASS |
+| Evidence URLs restricted to supplied list | PASS |
+
+#### Static Verification
+
+| Check | Result |
+|---|---|
+| `npm run build -- --webpack` | Clean — all routes compiled |
+| `npx tsc --noEmit` | Clean |
+| `npm run lint` | 3 pre-existing warnings, 0 errors — none in new code |
+| `npm audit --omit=dev` | 6 pre-existing vulnerabilities (Next.js 16.3.1 + transitive deps) — confirmed pre-existing on baseline; not introduced by Step 6.2 |
+| `git diff --check` | Clean |
+
+#### Temporary files removed
+
+- `_test-eval.mts` (project root) — deleted
+- `/tmp/stub-modules/` (server-only stub) — deleted
+- `/tmp/test-eval.ts`, `/tmp/test-eval.mts` — deleted
 
 ## Approved Persistence Decisions (2026-08-20)
 

@@ -33,8 +33,12 @@ import {
   addNote,
   removeNote,
   updateNote,
+  updateEvaluation,
 } from "@/lib/db/queries";
 import type { OpportunityRow, EvidenceRow, NoteRow, ChecklistRow } from "@/lib/db/schema";
+import { evaluateOpportunity } from "@/lib/ai/evaluate-opportunity";
+import { scoreToDecision } from "@/lib/ai/rubric";
+import type { OpportunityEvaluation } from "@/lib/types";
 
 // ── Action result type ─────────────────────────────────────────────────────────
 
@@ -386,5 +390,91 @@ export async function removeNoteAction(noteId: string): Promise<ActionResult> {
     return { ok: true, data: undefined };
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Failed to remove note");
+  }
+}
+
+// ── AI Evaluation ─────────────────────────────────────────────────────────────
+
+export interface EvaluationResult {
+  evalScore:            number;
+  decision:             string;
+  evaluatedAt:          string;
+  evaluation:           OpportunityEvaluation;
+}
+
+/**
+ * Run the V0.1 rubric AI evaluation against a single opportunity.
+ *
+ * Loads the opportunity + all evidence + research notes, calls Claude via
+ * evaluateOpportunity(), persists the five evaluation fields to the DB,
+ * and revalidates the opportunities path.
+ *
+ * Does NOT change the opportunity lifecycle status — evaluation is advisory only.
+ */
+export async function evaluateOpportunityAction(
+  id: string
+): Promise<ActionResult<EvaluationResult>> {
+  await requireAuth();
+  try {
+    if (!id) return fail("Opportunity ID is required");
+
+    const opp = getOpportunity(id);
+    if (!opp) return fail("Opportunity not found");
+
+    const evidence = getEvidence(id);
+    const notes    = getNotes(id);
+
+    // Parse stored JSON fields safely
+    let tags: string[] = [];
+    try { tags = JSON.parse(opp.tags ?? "[]"); } catch { tags = []; }
+
+    const evaluation = await evaluateOpportunity({
+      title:            opp.title,
+      problemStatement: opp.problemStatement,
+      targetCustomer:   opp.targetCustomer ?? "",
+      customerType:     opp.customerType   ?? "",
+      tags,
+      discoveredAt:     opp.discoveredAt,
+      thesisProblem:    opp.thesisProblem    ?? null,
+      thesisWho:        opp.thesisWho        ?? null,
+      thesisWhyHurts:   opp.thesisWhyHurts   ?? null,
+      thesisWhyPay:     opp.thesisWhyPay     ?? null,
+      thesisWhyNow:     opp.thesisWhyNow     ?? null,
+      evidence: evidence.map(e => ({
+        url:        e.url,
+        title:      e.title       ?? null,
+        platform:   e.platform    ?? null,
+        signalType: e.signalType  ?? null,
+        author:     e.author      ?? null,
+        summary:    e.summary     ?? null,
+      })),
+      notes: notes.map(n => ({
+        noteType:  n.noteType,
+        body:      n.body,
+        createdAt: n.createdAt,
+      })),
+    });
+
+    const evalScore = Math.round(evaluation.scorecard.totalScore);
+    const decision  = scoreToDecision(evaluation.scorecard.totalScore);
+
+    // One-sentence summary of the strongest objection as the recommendation reason
+    const recommendationReason = evaluation.narrative.strongestObjection;
+
+    updateEvaluation(id, {
+      evalScore,
+      evaluatedAt:          evaluation.evaluatedAt,
+      recommendation:       decision,
+      recommendationReason,
+      scorecard:            JSON.stringify(evaluation),
+    });
+
+    revalidatePath("/opportunities");
+    return {
+      ok:   true,
+      data: { evalScore, decision, evaluatedAt: evaluation.evaluatedAt, evaluation },
+    };
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "AI evaluation failed");
   }
 }
