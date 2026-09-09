@@ -18,6 +18,7 @@ import { STATUS_CONFIG } from "@/lib/opportunity-lifecycle";
 import { OpportunityForm } from "@/components/opportunities/opportunity-form";
 import { OppDetailPanel } from "@/components/opportunities/opp-detail-panel";
 import { LifecyclePanel } from "@/components/opportunities/lifecycle-panel";
+import { ScorecardPanel } from "@/components/opportunities/scorecard-panel";
 import { cn } from "@/lib/utils";
 import type { OpportunityRow } from "@/lib/db/schema";
 import type { OpportunityStatus } from "@/lib/types";
@@ -560,22 +561,10 @@ export function OpportunitiesClient({
                   </p>
                 </div>
 
-                {/* AI-era fields — rendered only when present */}
-                {selectedOpp.recommendation && (
-                  <div className="pt-3 border-t border-border space-y-1">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                      AI Recommendation
-                    </p>
-                    <p className="text-sm font-medium text-foreground">
-                      {selectedOpp.recommendation}
-                    </p>
-                    {selectedOpp.recommendationReason && (
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {selectedOpp.recommendationReason}
-                      </p>
-                    )}
-                  </div>
-                )}
+                {/* AI Evaluation scorecard — always rendered; shows unevaluated
+                    state when evalScore is null. Advisory only — does not
+                    affect lifecycle status or validation checklist. */}
+                <ScorecardPanel opp={selectedOpp} />
 
                 {/* Evidence and research notes — fetched from DB per opportunity.
                     key={id} remounts the panel when selection changes, giving
