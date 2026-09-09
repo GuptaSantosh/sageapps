@@ -1,19 +1,26 @@
+"use client";
+
 /**
  * components/opportunities/scorecard-panel.tsx
  *
- * Read-only display of a persisted AI evaluation (V0.1 rubric).
+ * Display of a persisted AI evaluation (V0.1 rubric) with a trigger button.
  * Parses the JSON scorecard blob from OpportunityRow and renders:
  *   - total score / 100 with colour-coded bar
  *   - recommendation badge and confidence
  *   - all 9 dimensions: raw score, mini-bar, weight, weighted score
- *   - dimension justification visible on row hover
+ *   - dimension justification always visible beneath each row
  *   - strongest objection, cheapest experiment, estimated cost, model
+ *   - Run Evaluation / Re-evaluate button that calls evaluateOpportunityAction
  *
  * Shows a clear "not yet evaluated" state when evalScore is null.
  * Advisory only — no lifecycle or checklist state is read or modified here.
  */
 
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { evaluateOpportunityAction } from "@/app/(private)/opportunities/actions";
 import type { OpportunityRow } from "@/lib/db/schema";
 import type { OpportunityEvaluation } from "@/lib/types";
 
@@ -92,6 +99,22 @@ function formatEvalDate(iso: string): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ScorecardPanel({ opp }: { opp: OpportunityRow }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [evalError, setEvalError] = useState<string | null>(null);
+
+  function handleEvaluate() {
+    setEvalError(null);
+    startTransition(async () => {
+      const result = await evaluateOpportunityAction(opp.id);
+      if (result.ok) {
+        router.refresh();
+      } else {
+        setEvalError(result.error);
+      }
+    });
+  }
+
   // ── Unevaluated state ────────────────────────────────────────────────────────
   if (opp.evalScore === null) {
     return (
@@ -102,6 +125,19 @@ export function ScorecardPanel({ opp }: { opp: OpportunityRow }) {
         <p className="text-xs text-muted-foreground/50 italic">
           Not yet evaluated — run an evaluation to score this opportunity against the V0.1 rubric.
         </p>
+        <button
+          onClick={handleEvaluate}
+          disabled={isPending}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary transition-all disabled:opacity-60"
+        >
+          {isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+          {isPending ? "Evaluating…" : "Run Evaluation"}
+        </button>
+        {evalError && (
+          <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded px-2 py-1">
+            {evalError}
+          </p>
+        )}
       </div>
     );
   }
@@ -127,15 +163,30 @@ export function ScorecardPanel({ opp }: { opp: OpportunityRow }) {
         <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
           AI Evaluation
         </p>
-        {opp.evaluatedAt && (
-          <p className="text-[10px] text-muted-foreground/50 font-mono">
-            {formatEvalDate(opp.evaluatedAt)}
-            {evaluation && (
-              <span className="ml-1.5 opacity-60">· {evaluation.modelUsed}</span>
-            )}
-          </p>
-        )}
+        <div className="flex items-center gap-2">
+          {opp.evaluatedAt && (
+            <p className="text-[10px] text-muted-foreground/50 font-mono">
+              {formatEvalDate(opp.evaluatedAt)}
+              {evaluation && (
+                <span className="ml-1.5 opacity-60">· {evaluation.modelUsed}</span>
+              )}
+            </p>
+          )}
+          <button
+            onClick={handleEvaluate}
+            disabled={isPending}
+            className="flex items-center gap-1 px-2 py-0.5 text-[10px] text-muted-foreground border border-border rounded hover:text-foreground hover:border-primary/40 transition-all disabled:opacity-50"
+          >
+            {isPending && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+            {isPending ? "Evaluating…" : "Re-evaluate"}
+          </button>
+        </div>
       </div>
+      {evalError && (
+        <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded px-2 py-1">
+          {evalError}
+        </p>
+      )}
 
       {/* ── Score + recommendation ───────────────────────────────────────────── */}
       <div className="space-y-2">
