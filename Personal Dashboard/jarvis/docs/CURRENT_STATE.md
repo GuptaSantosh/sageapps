@@ -1,7 +1,7 @@
 # Jarvis — Current State
 
 > Update this file after every completed implementation or deployment milestone.
-> Last updated: 2026-09-09 (Step 6.2 — real AI evaluator complete, live test passed, ready to commit)
+> Last updated: 2026-09-10 (Step 6.4 — Run Evaluation UI deployed and verified in production)
 
 ## What Is Complete
 
@@ -310,14 +310,49 @@ Also: remove or rewire the "Run Radar" button in `opportunities-client.tsx` (cur
 |---|---|---|
 | **6.0** | Documentation + dead-code cleanup | Complete — commit `2c888ec` |
 | **6.1** | Schema (2 new columns + migration), types, query helper | Complete — commit `aa7855b` |
-| **6.2** | Real AI evaluator (`lib/ai/rubric.ts`, `lib/ai/evaluate-opportunity.ts`, `evaluateOpportunityAction`) | **Complete — ready to commit** |
-| **6.3** | Scorecard UI (`scorecard-panel.tsx`, wire into `opportunities-client.tsx`) | Pending |
+| **6.2** | Real AI evaluator (`lib/ai/rubric.ts`, `lib/ai/evaluate-opportunity.ts`, `evaluateOpportunityAction`) | Complete — commit `a8ba478` |
+| **6.3** | Scorecard UI (`scorecard-panel.tsx`, wire into `opportunities-client.tsx`) | Complete — commit `c210722` |
+| **6.4** | Run Evaluation UI button (`scorecard-panel.tsx` wired to `evaluateOpportunityAction`) | **Complete — commit `c733ced`, deployed 2026-09-10** |
 
 Production starts empty — do not seed demo data.
 
 ---
 
-### Step 6.2 — Real AI Evaluator (complete, not yet committed)
+### Step 6.4 — Run Evaluation UI (complete, deployed 2026-09-10, commit c733ced)
+
+| File | Change |
+|---|---|
+| `components/opportunities/scorecard-panel.tsx` | Added `"use client"` directive; `useTransition`, `useState`, `useRouter` hooks; `handleEvaluate()` calling `evaluateOpportunityAction(opp.id)`; "Run Evaluation" primary button in unevaluated state; compact "Re-evaluate" button beside date/model in evaluated state; `Loader2` spinner + "Evaluating…" label while pending; inline red error display in both states; `router.refresh()` on success |
+
+**Post-deploy fix:** `ANTHROPIC_API_KEY` was missing from server `.env.local`. Added manually by Santosh. No code change. Service restarted. Evaluation verified working end-to-end in production.
+
+**Deployment record:**
+
+| Item | Detail |
+|---|---|
+| Deployed commit | `c733ced` |
+| Pre-deploy backup | `jarvis.db.bak-step6.4-20260909-211727` (64K) |
+| `npm ci` | Skipped — no `package.json` change |
+| Build | `npm run build -- --webpack` — clean, all 8 routes |
+| Migration | Not required — no schema change |
+| Service | `RUNNING` after `supervisorctl restart jarvis` |
+| `/login` HTTP | 200 |
+| Production records | 2 records, `eval_score: null` — unchanged |
+
+---
+
+### Step 6.3 — Scorecard UI (complete, deployed 2026-09-10, commit c210722)
+
+| File | Change |
+|---|---|
+| `components/opportunities/scorecard-panel.tsx` | New component — full read-only display of persisted `OpportunityEvaluation`: total score/100 with colour-coded bar, recommendation badge, confidence badge, 9 dimension rows (raw score, mini-bar, weight, weighted score, justification always visible), strongest objection, cheapest experiment, estimated time/cost, model used, date |
+| `components/opportunities/opportunities-client.tsx` | Replaced 14-line "AI-era fields" conditional block with `<ScorecardPanel opp={selectedOpp} />` |
+
+**UX note:** Dimension justifications are always visible (not hover-only) — required for touch device accessibility.
+
+---
+
+### Step 6.2 — Real AI Evaluator (complete, committed a8ba478)
 
 #### Implementation
 
